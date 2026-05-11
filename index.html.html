@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema de Gestión de Mercadería</title>
 <style>
@@ -1240,7 +1240,12 @@ const HCK='mv6_compras', HVK='mv6_ventas', CKAY='mv6_caja';
 // ── SUPABASE CONFIG ──────────────────────────────────────────────
 const SUPA_URL = 'https://kxtidabdmrlbxzhhvxdz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4dGlkYWJkbXJsYnh6aGh2eGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNzQ1NjEsImV4cCI6MjA5MzY1MDU2MX0.a5lgsryo4gol9lTD4bAHbYI9a9GiTLKCNn5YUS87Ncg';
-const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+let supa;
+try{
+  supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+}catch(e){
+  console.error('Supabase init error:',e);
+}
 let currentUser = null;
 let currentUserRole = 'vendedor';
 
@@ -1273,13 +1278,28 @@ async function loginUser(){
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPassword').value;
   const btn=document.getElementById('loginBtn');
-  const errEl=document.getElementById('loginError');
   if(!email||!pass){showLoginError('Completá email y contraseña');return;}
   btn.textContent='Ingresando...';btn.disabled=true;
-  const{data,error}=await supa.auth.signInWithPassword({email,password:pass});
-  btn.textContent='INGRESAR';btn.disabled=false;
-  if(error){showLoginError(error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message);return;}
-  // Successful login handled by onAuthStateChange
+  try{
+    const{data,error}=await supa.auth.signInWithPassword({email,password:pass});
+    if(error){
+      btn.textContent='INGRESAR';btn.disabled=false;
+      showLoginError(error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message);
+      return;
+    }
+    // onAuthStateChange will handle the rest
+    // Add a timeout fallback in case it doesn't fire
+    setTimeout(()=>{
+      if(btn.disabled){
+        btn.textContent='INGRESAR';btn.disabled=false;
+        showLoginError('Tiempo de espera agotado. Intentá nuevamente.');
+      }
+    },10000);
+  }catch(err){
+    btn.textContent='INGRESAR';btn.disabled=false;
+    showLoginError('Error de conexión: '+err.message);
+    console.error('Login error:',err);
+  }
 }
 
 async function registerUser(){
@@ -1478,25 +1498,33 @@ async function saveProduct(prod){
 
 // ── SESSION INIT ─────────────────────────────────────────────────
 supa.auth.onAuthStateChange(async(event,session)=>{
-  if(session){
-    currentUser=session.user;
-    // Get user role
-    const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
-    currentUserRole=roleData?.role||'vendedor';
-    // Set admin mode based on role
-    isAdminMode=(currentUserRole==='admin');
-    // Show app, hide login
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('mainApp').style.display='block';
-    // Update UI
-    updateModeUI();
-    // Load data from Supabase
-    await loadFromSupabase();
-  }else{
-    currentUser=null;
-    currentUserRole='vendedor';
-    document.getElementById('loginScreen').style.display='flex';
-    document.getElementById('mainApp').style.display='none';
+  const btn=document.getElementById('loginBtn');
+  try{
+    if(session){
+      currentUser=session.user;
+      // Get user role
+      try{
+        const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
+        currentUserRole=roleData?.role||'vendedor';
+      }catch(e){currentUserRole='vendedor';}
+      isAdminMode=(currentUserRole==='admin');
+      // Show app
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('mainApp').style.display='block';
+      if(btn){btn.textContent='INGRESAR';btn.disabled=false;}
+      updateModeUI();
+      await loadFromSupabase();
+    }else{
+      currentUser=null;
+      currentUserRole='vendedor';
+      document.getElementById('loginScreen').style.display='flex';
+      document.getElementById('mainApp').style.display='none';
+      if(btn){btn.textContent='INGRESAR';btn.disabled=false;}
+    }
+  }catch(err){
+    console.error('Auth state change error:',err);
+    if(btn){btn.textContent='INGRESAR';btn.disabled=false;}
+    showLoginError('Error al cargar el sistema: '+err.message);
   }
 });
 
