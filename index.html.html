@@ -404,7 +404,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="nav-tab active" id="tab-ventas-main" onclick="showPage('ventas',this)">🛒 Ventas</button>
     <button class="nav-tab admin-only" onclick="showPage('histVentas',this)">📋 Historial</button>
     <button class="nav-tab admin-only" id="tab-compras" onclick="showPage('compras',this)">🧾 Compras</button>
-    <button class="nav-tab admin-only" id="tab-caja" onclick="showPage('caja',this)">🏦 Caja</button>
+    <button class="nav-tab admin-only" id="tab-caja" onclick="showPage('caja',this)">🏦 Caja Ventas</button>
+    <button class="nav-tab admin-only" id="tab-metricas" onclick="showPage('metricas',this)">📈 Métricas</button>
+    <button class="nav-tab admin-only" id="tab-proveedores" onclick="showPage('proveedores',this)">🏭 Proveedores</button>
   </div>
   <div class="nav-right">
     <span class="mode-badge" id="modeBadge">—</span>
@@ -482,7 +484,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <h3>Datos del día</h3>
     <div class="vhdr-grid">
       <div class="vfield"><label>Fecha</label><input type="date" id="v_fecha"></div>
-      <div class="vfield"><label>Vendedor</label><input type="text" id="v_vendedor" placeholder="Nombre del vendedor"></div>
+      <div class="vfield"><label>Vendedor</label>
+      <select id="v_vendedor" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.38rem .55rem;font-size:.83rem;font-family:'DM Sans',sans-serif;width:100%">
+        <option value="">— Sin especificar —</option>
+        <option value="Morena">Morena</option>
+        <option value="Abel">Abel</option>
+        <option value="Julian">Julian</option>
+        <option value="Ivo">Ivo</option>
+      </select>
+      </div>
       <div class="vfield"><label>Caja chica inicio ($)</label><input type="number" id="v_cc_inicio" value="30000" oninput="recalcVentas()"></div>
       <div class="vfield"><label>Efectivo real ($)</label><input type="number" id="v_efec_real" value="0" oninput="recalcVentas()"></div>
       <div class="vfield"><label>Caja chica final ($)</label><input type="number" id="v_cc_final" value="0" oninput="recalcVentas()"></div>
@@ -511,11 +521,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
   <div class="section-card">
     <h3>Gastos
-      <button class="btn btn-secondary" style="font-size:.71rem;padding:.32rem .75rem" onclick="addGastoRow()">➕ Agregar gasto</button>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.25rem">
+        <button class="btn btn-secondary" style="font-size:.71rem;padding:.32rem .75rem" onclick="addGastoRow()">➕ Agregar gasto</button>
+        <button class="btn" style="font-size:.71rem;padding:.32rem .75rem;background:rgba(155,89,182,.15);border-color:rgba(155,89,182,.4);color:var(--purple)" onclick="addCompraUsadoRow()">🛍️ Compra de usados</button>
+      </div>
     </h3>
-    <div class="vt-scroll" style="max-width:500px">
+    <div class="vt-scroll" style="max-width:620px">
       <table class="g-table">
-        <thead><tr><th style="min-width:200px">Motivo</th><th style="min-width:110px">Importe ($)</th><th></th></tr></thead>
+        <thead><tr><th style="min-width:80px">Tipo</th><th style="min-width:180px">Motivo / Detalle</th><th style="min-width:80px">Prendas</th><th style="min-width:110px">Total ($)</th><th style="min-width:100px">Pago</th><th></th></tr></thead>
         <tbody id="gastosBody"></tbody>
       </table>
     </div>
@@ -580,7 +593,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- ═══ CAJA (admin) ═══ -->
 <section class="page" id="page-caja">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
-    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">🏦 HISTORIAL DE CAJA</h2>
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">🏦 CAJA VENTAS</h2>
     <span style="font-size:.75rem;color:var(--muted)">🔒 Solo administrador</span>
   </div>
   <!-- TABS: Diario / Mensual -->
@@ -1535,6 +1548,7 @@ function initData(){
   _NEW_PH.forEach(np=>{if(!purchaseHistory.find(p=>p.id===np.id))purchaseHistory.push(np);});
   try{cajaHistory=JSON.parse(localStorage.getItem(CKAY)||'[]');}catch(e){cajaHistory=[];}
   try{window.stockAdjustments=JSON.parse(localStorage.getItem('mv6_adj')||'[]');}catch(e){window.stockAdjustments=[];}
+  initProveedores();
 }
 function saveAll(){
   const toSave=products.map(p=>{
@@ -1630,13 +1644,18 @@ function showPage(id,btn){
   document.getElementById('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
   if(id==='histVentas')renderHistVentas();
-  if(id==='compras'){renderComprasHist();} // always refresh when navigating
+  if(id==='compras'){renderComprasHist();}
   if(id==='caja'){
     renderCajaPage();
-    // Init mensual with current month if empty
     const md=document.getElementById('cajaMesDesde');
     if(md&&!md.value)setCajaMesCurrentMonth();
   }
+  if(id==='metricas'){
+    const md=document.getElementById('met_desde');
+    if(md&&!md.value)setMetricasCurrentMonth();
+    else renderMetricas();
+  }
+  if(id==='proveedores'){renderProveedores();}
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -2035,18 +2054,32 @@ function removeTicket(idx){
 
 // ══ GASTOS ════════════════════════════════════════════════════════
 function addGastoRow(){
-  gastoRows.push({rid:'gr'+Date.now(),motivo:'',importe:0});renderGastosTable();
+  gastoRows.push({rid:'gr'+Date.now(),tipo:'gasto',motivo:'',importe:0,pago:'efectivo',prendas:0});
+  renderGastosTable();
+}
+function addCompraUsadoRow(){
+  gastoRows.push({rid:'cu'+Date.now(),tipo:'compra_usados',motivo:'Compra prendas usadas',importe:0,pago:'efectivo',prendas:1});
+  renderGastosTable();
 }
 function removeGastoRow(rid){gastoRows=gastoRows.filter(r=>r.rid!==rid);renderGastosTable();recalcVentas();}
 function setGF(rid,field,val){const r=gastoRows.find(x=>x.rid===rid);if(r){r[field]=val;recalcVentas();}}
 function renderGastosTable(){
   const tbody=document.getElementById('gastosBody');if(!tbody)return;
-  tbody.innerHTML=gastoRows.map(r=>`
-    <tr>
-      <td><input type="text" value="${r.motivo||''}" placeholder="Motivo..." onchange="setGF('${r.rid}','motivo',this.value)"></td>
+  tbody.innerHTML=gastoRows.map(r=>{
+    const isCompra=r.tipo==='compra_usados';
+    const rowColor=isCompra?'background:rgba(155,89,182,.07)':'';
+    return `<tr style="${rowColor}">
+      <td><span style="font-size:.68rem;padding:.15rem .35rem;border-radius:4px;font-weight:600;${isCompra?'background:rgba(155,89,182,.2);color:var(--purple)':'background:rgba(100,100,100,.2);color:var(--muted)'}">${isCompra?'🛍️ Usados':'💸 Gasto'}</span></td>
+      <td><input type="text" value="${r.motivo||''}" placeholder="${isCompra?'Descripción...':'Motivo...'}" onchange="setGF('${r.rid}','motivo',this.value)"></td>
+      <td>${isCompra?`<input type="number" min="1" value="${r.prendas||1}" style="width:60px" oninput="setGF('${r.rid}','prendas',+this.value)" title="Cantidad de prendas">`:'<span style="color:var(--muted);font-size:.75rem">—</span>'}</td>
       <td><input type="number" min="0" value="${r.importe||0}" oninput="setGF('${r.rid}','importe',+this.value)"></td>
+      <td><select onchange="setGF('${r.rid}','pago',this.value)" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:.2rem .35rem;font-size:.73rem;font-family:'DM Sans',sans-serif">
+        <option value="efectivo" ${r.pago==='efectivo'?'selected':''}>💵 Efectivo</option>
+        <option value="transferencia" ${r.pago==='transferencia'?'selected':''}>💳 Transf.</option>
+      </select></td>
       <td><button class="del-btn" onclick="removeGastoRow('${r.rid}')">✕</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 // ══ CONTADOR CLIENTES ═════════════════════════════════════════════
@@ -3535,6 +3568,364 @@ ${gastoRows.length?`<h2>Gastos</h2><table><thead><tr><th>Motivo</th><th style="t
   showToast('📄 PDF descargado — abrilo en el navegador e imprimí con Ctrl+P');
 }
 
+// ══════════════════════════════════════════════════════════════════
+// MÉTRICAS
+// ══════════════════════════════════════════════════════════════════
+function setMetricasCurrentMonth(){
+  const now=new Date();
+  const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
+  const last=new Date(y,now.getMonth()+1,0);
+  const d=document.getElementById('met_desde');if(d)d.value=`${y}-${m}-01`;
+  const h=document.getElementById('met_hasta');if(h)h.value=`${y}-${m}-${String(last.getDate()).padStart(2,'0')}`;
+  renderMetricas();
+}
+function setMetricasAllTime(){
+  const d=document.getElementById('met_desde');if(d)d.value='';
+  const h=document.getElementById('met_hasta');if(h)h.value='';
+  renderMetricas();
+}
+function renderMetricas(){
+  const desde=document.getElementById('met_desde')?.value||'';
+  const hasta=document.getElementById('met_hasta')?.value||'';
+  // Filter jornadas by period
+  let jornadas=[...ventasHistory].filter(j=>!j.anulada);
+  if(desde)jornadas=jornadas.filter(j=>(j.fecha||'')>=desde);
+  if(hasta)jornadas=jornadas.filter(j=>(j.fecha||'')<=hasta);
+  // Filter caja entries
+  let cajaEntries=[...cajaHistory];
+  if(desde)cajaEntries=cajaEntries.filter(c=>(c.fecha||'')>=desde);
+  if(hasta)cajaEntries=cajaEntries.filter(c=>(c.fecha||'')<=hasta);
+
+  const lbl=document.getElementById('met_periodo_label');
+  if(lbl)lbl.textContent=jornadas.length+' jornada'+(jornadas.length!==1?'s':'')+
+    (desde||hasta?' · '+(desde||'inicio')+' → '+(hasta||'hoy'):'');
+
+  // Aggregate ventas
+  const totVentas=cajaEntries.reduce((s,c)=>s+(c.totalVentas||0),0);
+  const totEfec=cajaEntries.reduce((s,c)=>s+(c.totEfec||0),0);
+  const totTransf=cajaEntries.reduce((s,c)=>s+(c.totTransf||0),0);
+  const totComisiones=cajaEntries.reduce((s,c)=>s+(c.comisiones||0),0);
+  const totCostoTransf=cajaEntries.reduce((s,c)=>s+(c.costoTransferencias||0),0);
+  const totCMV=cajaEntries.reduce((s,c)=>s+(c.cmv||0),0);
+  const totDesc=cajaEntries.reduce((s,c)=>s+(c.totalDesc||0),0);
+  const totGananciaReal=cajaEntries.reduce((s,c)=>s+(c.gananciaReal||0),0);
+  const totTickets=cajaEntries.reduce((s,c)=>s+(c.tickets||0),0);
+  const totPrendas=cajaEntries.reduce((s,c)=>s+(c.prendas||0),0);
+  const totClientes=cajaEntries.reduce((s,c)=>s+(c.clientesHoy||0),0);
+  const avgMargen=cajaEntries.length>0?Math.round(cajaEntries.reduce((s,c)=>s+(c.margenGanancia||0),0)/cajaEntries.length):0;
+  const avgConv=cajaEntries.length>0?Math.round(cajaEntries.reduce((s,c)=>s+(c.conversion||0),0)/cajaEntries.length):0;
+
+  // Aggregate gastos from jornadas
+  let totGastos=0, gastosByMotivo={}, totComprasUsados=0, cantComprasUsados=0;
+  jornadas.forEach(j=>{
+    (j.gastos||[]).forEach(g=>{
+      if(g.tipo==='compra_usados'){
+        totComprasUsados+=(g.importe||0);
+        cantComprasUsados+=(g.prendas||0);
+      } else {
+        totGastos+=(g.importe||0);
+        const mot=g.motivo||'Sin motivo';
+        gastosByMotivo[mot]=(gastosByMotivo[mot]||0)+(g.importe||0);
+      }
+    });
+  });
+  const totGastosTotal=totGastos+totComprasUsados;
+
+  // Purchases from purchaseHistory
+  let totComprasMercaderia=0;
+  const comprasEnPeriodo=purchaseHistory.filter(p=>{
+    if(!desde&&!hasta)return true;
+    return (!desde||(p.date||'')>=desde)&&(!hasta||(p.date||'')<=hasta);
+  });
+  comprasEnPeriodo.forEach(p=>{totComprasMercaderia+=(p.cost||0)*(p.qty||0);});
+
+  const gastosRows=Object.entries(gastosByMotivo).sort((a,b)=>b[1]-a[1]);
+
+  const content=document.getElementById('metricasContent');
+  if(!content)return;
+
+  content.innerHTML=`
+    <!-- Ventas KPIs -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;margin-bottom:.65rem;color:var(--muted)">💰 VENTAS</div>
+    <div class="caja-metrics" style="margin-bottom:1.2rem">
+      <div class="caja-metric"><span class="cml">Total ventas</span><span class="cmv" style="color:var(--yellow)">${fmtM(totVentas)}</span></div>
+      <div class="caja-metric"><span class="cml">💵 Efectivo</span><span class="cmv" style="color:var(--green)">${fmtM(totEfec)}</span></div>
+      <div class="caja-metric"><span class="cml">💳 Transferencia</span><span class="cmv" style="color:var(--blue)">${fmtM(totTransf)}</span></div>
+      <div class="caja-metric"><span class="cml">Descuentos otorgados</span><span class="cmv" style="color:var(--accent)">${fmtM(totDesc)}</span></div>
+      <div class="caja-metric"><span class="cml">Tickets</span><span class="cmv">${totTickets}</span></div>
+      <div class="caja-metric"><span class="cml">Prendas vendidas</span><span class="cmv">${totPrendas}</span></div>
+      <div class="caja-metric"><span class="cml">Clientes</span><span class="cmv">${totClientes}</span></div>
+      <div class="caja-metric"><span class="cml">Conversión prom.</span><span class="cmv" style="color:var(--purple)">${avgConv}%</span></div>
+      <div class="caja-metric"><span class="cml">Jornadas</span><span class="cmv">${jornadas.length}</span></div>
+      <div class="caja-metric"><span class="cml">Promedio/día</span><span class="cmv">${jornadas.length>0?fmtM(Math.round(totVentas/jornadas.length)):'—'}</span></div>
+    </div>
+
+    <!-- Costos y Ganancia -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;margin-bottom:.65rem;color:var(--muted)">📊 COSTOS Y GANANCIA</div>
+    <div class="caja-metrics" style="margin-bottom:1.2rem">
+      <div class="caja-metric"><span class="cml">CMV</span><span class="cmv" style="color:var(--accent)">${fmtM(totCMV)}</span></div>
+      <div class="caja-metric"><span class="cml">Comisiones (6%)</span><span class="cmv" style="color:var(--accent)">${fmtM(totComisiones)}</span></div>
+      <div class="caja-metric"><span class="cml">Costo transf. (4%)</span><span class="cmv" style="color:var(--accent)">${fmtM(totCostoTransf)}</span></div>
+      <div class="caja-metric"><span class="cml">Gastos operativos</span><span class="cmv" style="color:var(--accent)">${fmtM(totGastos)}</span></div>
+      <div class="caja-metric"><span class="cml">🛍️ Compras usados</span><span class="cmv" style="color:var(--purple)">${fmtM(totComprasUsados)}</span></div>
+      <div class="caja-metric"><span class="cml">Compras mercadería</span><span class="cmv" style="color:var(--accent)">${fmtM(totComprasMercaderia)}</span></div>
+      <div class="caja-metric"><span class="cml">Total egresos</span><span class="cmv" style="color:var(--accent)">${fmtM(totCMV+totComisiones+totCostoTransf+totGastosTotal)}</span></div>
+      <div class="caja-metric"><span class="cml">Ganancia real</span><span class="cmv" style="color:var(--green)">${fmtM(totGananciaReal)}</span></div>
+      <div class="caja-metric"><span class="cml">Margen ganancia prom.</span><span class="cmv" style="color:var(--green)">${avgMargen}%</span></div>
+    </div>
+
+    <!-- Detalle gastos -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;margin-bottom:.65rem;color:var(--muted)">💸 DETALLE DE GASTOS OPERATIVOS</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:1.2rem">
+      ${gastosRows.length?gastosRows.map(([mot,imp])=>`
+        <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.82rem">
+          <span>${mot}</span><span style="font-weight:600;color:var(--accent)">${fmtM(imp)}</span>
+        </div>`).join(''):'<p style="color:var(--muted);font-size:.8rem">Sin gastos registrados en este período.</p>'}
+      ${totComprasUsados>0?`<div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.82rem">
+        <span>🛍️ Compras de prendas usadas (${cantComprasUsados} prendas)</span><span style="font-weight:600;color:var(--purple)">${fmtM(totComprasUsados)}</span>
+      </div>`:''}
+      <div style="display:flex;justify-content:space-between;padding:.5rem 0;font-size:.88rem;font-weight:700">
+        <span>TOTAL GASTOS</span><span style="color:var(--accent)">${fmtM(totGastosTotal)}</span>
+      </div>
+    </div>
+
+    <!-- Compras mercaderia por proveedor -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;margin-bottom:.65rem;color:var(--muted)">🛒 COMPRAS DE MERCADERÍA (${comprasEnPeriodo.length} registros)</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem">
+      ${comprasEnPeriodo.length?`<div class="tbl-wrap"><table class="hist-tbl">
+        <thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Costo unit.</th><th>Total</th><th>Pago</th></tr></thead>
+        <tbody>${[...comprasEnPeriodo].reverse().slice(0,20).map(p=>`<tr>
+          <td>${p.date||'—'}</td><td>${p.productTitle||'—'}</td>
+          <td>${p.qty}</td><td>${fmtM(p.cost)}</td>
+          <td style="color:var(--accent);font-weight:600">${fmtM(p.cost*p.qty)}</td>
+          <td><span style="font-size:.7rem;color:${p.pago==='transferencia'?'var(--blue)':'var(--green)'}">${p.pago==='transferencia'?'💳':'💵'}</span></td>
+        </tr>`).join('')}</tbody>
+        </table></div>
+        <div style="text-align:right;font-weight:700;padding:.5rem 0;font-size:.88rem">TOTAL: <span style="color:var(--accent)">${fmtM(totComprasMercaderia)}</span></div>`
+        :'<p style="color:var(--muted);font-size:.8rem">Sin compras en este período.</p>'}
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PROVEEDORES
+// ══════════════════════════════════════════════════════════════════
+let proveedores=[];
+let currentProveedorId=null;
+let editingProveedorId=null;
+
+function initProveedores(){
+  try{proveedores=JSON.parse(localStorage.getItem('mv6_proveedores')||'[]');}catch(e){proveedores=[];}
+}
+function saveProveedores(){
+  try{localStorage.setItem('mv6_proveedores',JSON.stringify(proveedores));}catch(e){}
+}
+
+function renderProveedores(){
+  const list=document.getElementById('proveedoresList');if(!list)return;
+  if(!proveedores.length){
+    list.innerHTML='<p style="color:var(--muted);text-align:center;padding:3rem">No hay proveedores registrados. Hacé clic en "+ Nuevo proveedor" para agregar uno.</p>';
+    document.getElementById('proveedoresTotalDeuda').style.display='none';
+    return;
+  }
+  // Calculate total debt
+  const totalDeuda=proveedores.filter(p=>p.ctacte).reduce((s,p)=>s+(p.saldo||0),0);
+  const deudaEl=document.getElementById('proveedoresTotalDeuda');
+  if(deudaEl){
+    deudaEl.style.display=totalDeuda>0?'block':'none';
+    const dtEl=document.getElementById('proveedoresDeudaTotal');
+    if(dtEl)dtEl.textContent=fmtM(totalDeuda);
+  }
+  // Group by whether they have a balance
+  const conDeuda=proveedores.filter(p=>p.ctacte&&(p.saldo||0)>0);
+  const sinDeuda=proveedores.filter(p=>!p.ctacte||(p.saldo||0)===0);
+
+  const renderCard=(p)=>{
+    const prods=products.filter(pr=>
+      pr.supplier&&pr.supplier.toLowerCase().includes(p.nombre.toLowerCase().split(' ')[0])
+    );
+    const totalCompras=purchaseHistory.filter(h=>
+      prods.some(pr=>pr.id===h.productId)
+    ).reduce((s,h)=>s+(h.cost*h.qty),0);
+    return `<div class="caja-hist-card" onclick="openDetalleProveedor('${p.id}')" style="cursor:pointer;${(p.saldo||0)>0?'border-color:rgba(230,57,70,.35)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.4rem">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.04em">${p.nombre}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">
+            ${p.dir?'📍 '+p.dir:''}${p.tel?' · 📱 '+p.tel:''}${p.ig?' · @'+p.ig.replace('@',''):''}
+          </div>
+        </div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+          ${p.ctacte?`<div style="text-align:center;background:var(--surface2);border-radius:7px;padding:.35rem .65rem">
+            <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase">Saldo deuda</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${(p.saldo||0)>0?'var(--accent)':'var(--green)'}">${fmtM(p.saldo||0)}</div>
+          </div>`:''}
+          <div style="text-align:center;background:var(--surface2);border-radius:7px;padding:.35rem .65rem">
+            <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase">Productos</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem">${prods.length}</div>
+          </div>
+          <div style="text-align:center;background:var(--surface2);border-radius:7px;padding:.35rem .65rem">
+            <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase">Total comprado</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">${fmtM(totalCompras)}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  list.innerHTML=(conDeuda.length?`<div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin-bottom:.45rem">Con saldo pendiente</div>`+conDeuda.map(renderCard).join('')+`<div style="margin-top:.8rem;font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.45rem">Sin deuda</div>`:'')+sinDeuda.map(renderCard).join('');
+}
+
+function openNuevoProveedor(){
+  editingProveedorId=null;
+  document.getElementById('nprovTitle').textContent='🏭 NUEVO PROVEEDOR';
+  document.getElementById('nprov_delete_btn').style.display='none';
+  ['nprov_nombre','nprov_dir','nprov_tel','nprov_ig','nprov_notas'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  document.getElementById('nprov_ctacte').checked=false;
+  document.getElementById('nuevoProveedorModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function editarProveedor(id){
+  const p=proveedores.find(x=>x.id===id);if(!p)return;
+  editingProveedorId=id;
+  closeDetalleProveedor();
+  document.getElementById('nprovTitle').textContent='✏️ EDITAR: '+p.nombre;
+  document.getElementById('nprov_delete_btn').style.display='';
+  const setV=(fid,v)=>{const el=document.getElementById(fid);if(el)el.value=v||'';};
+  setV('nprov_nombre',p.nombre);setV('nprov_dir',p.dir);setV('nprov_tel',p.tel);
+  setV('nprov_ig',p.ig);setV('nprov_notas',p.notas);
+  document.getElementById('nprov_ctacte').checked=!!p.ctacte;
+  document.getElementById('nuevoProveedorModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeNuevoProveedor(){
+  document.getElementById('nuevoProveedorModal').classList.remove('open');
+  document.body.style.overflow='';
+  editingProveedorId=null;
+}
+function toggleProvCuentaCorriente(){}
+function confirmarNuevoProveedor(){
+  const nombre=(document.getElementById('nprov_nombre')?.value||'').trim();
+  if(!nombre){showToast('❌ El nombre es obligatorio');return;}
+  const data={
+    nombre,
+    dir:document.getElementById('nprov_dir')?.value||'',
+    tel:document.getElementById('nprov_tel')?.value||'',
+    ig:document.getElementById('nprov_ig')?.value||'',
+    notas:document.getElementById('nprov_notas')?.value||'',
+    ctacte:document.getElementById('nprov_ctacte')?.checked||false,
+  };
+  if(editingProveedorId){
+    const p=proveedores.find(x=>x.id===editingProveedorId);
+    if(p)Object.assign(p,data);
+  }else{
+    data.id='prov'+Date.now();data.saldo=0;data.movimientos=[];
+    proveedores.push(data);
+  }
+  saveProveedores();closeNuevoProveedor();renderProveedores();
+  showToast('✅ Proveedor guardado');
+}
+function eliminarProveedor(){
+  if(!editingProveedorId)return;
+  if(!confirm('¿Eliminar este proveedor?'))return;
+  proveedores=proveedores.filter(p=>p.id!==editingProveedorId);
+  saveProveedores();closeNuevoProveedor();renderProveedores();
+  showToast('🗑️ Proveedor eliminado');
+}
+function openDetalleProveedor(id){
+  const p=proveedores.find(x=>x.id===id);if(!p)return;
+  currentProveedorId=id;
+  document.getElementById('dprov_title').textContent='🏭 '+p.nombre.toUpperCase();
+  const info=document.getElementById('dprov_info');
+  if(info)info.innerHTML=`
+    ${p.dir?`<span style="font-size:.78rem;color:var(--muted)">📍 ${p.dir}</span>`:''}
+    ${p.tel?`<span style="font-size:.78rem;color:var(--muted)">📱 ${p.tel}</span>`:''}
+    ${p.ig?`<span style="font-size:.78rem;color:var(--blue)">@${p.ig.replace('@','')}</span>`:''}
+    ${p.notas?`<span style="font-size:.78rem;color:var(--muted)">📝 ${p.notas}</span>`:''}
+    ${p.ctacte?'<span style="font-size:.7rem;background:rgba(74,158,255,.15);color:var(--blue);border-radius:5px;padding:.15rem .45rem">Cta. Cte. habilitada</span>':''}
+  `;
+  // Saldo section
+  const saldoSec=document.getElementById('dprov_saldo_section');
+  if(saldoSec)saldoSec.style.display=p.ctacte?'block':'none';
+  if(p.ctacte){
+    const saldoEl=document.getElementById('dprov_saldo');
+    if(saldoEl)saldoEl.textContent=fmtM(p.saldo||0);
+    // Movimientos
+    const movBody=document.getElementById('dprov_mov_body');
+    if(movBody)movBody.innerHTML=(p.movimientos||[]).slice().reverse().map(m=>`<tr>
+      <td>${m.fecha||'—'}</td>
+      <td><span style="font-size:.7rem;color:${m.tipo==='deuda'?'var(--accent)':m.tipo==='pago'?'var(--green)':'var(--blue)'}">${m.tipo==='deuda'?'📦 Deuda':m.tipo==='pago'?'💰 Pago':'📝'}</span></td>
+      <td style="font-size:.72rem">${m.detalle||'—'}</td>
+      <td style="font-weight:600;color:${m.tipo==='pago'?'var(--green)':'var(--accent)'}">${m.tipo==='pago'?'-':'+'} ${fmtM(m.importe||0)}</td>
+    </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">Sin movimientos</td></tr>';
+  }
+  // Products
+  const prods=products.filter(pr=>
+    pr.supplier&&pr.supplier.toLowerCase().includes(p.nombre.toLowerCase().split(' ')[0])
+  );
+  const prodsEl=document.getElementById('dprov_productos');
+  if(prodsEl)prodsEl.innerHTML=prods.length?prods.map(pr=>`
+    <div style="background:var(--surface2);border-radius:8px;padding:.5rem .7rem;font-size:.78rem;cursor:pointer" onclick="closeDetalleProveedor();selectProductFromCard(${pr.id})">
+      <div style="font-weight:600">${pr.title}</div>
+      <div style="color:var(--muted)">${pr.tag} · Stock: ${getStock(pr.id)}</div>
+      <div style="color:var(--green)">${pr.sale1}</div>
+    </div>`).join(''):'<p style="color:var(--muted);font-size:.78rem">Sin productos vinculados automáticamente.</p>';
+  // Compras history
+  const comprasBody=document.getElementById('dprov_compras_body');
+  if(comprasBody){
+    const pids=prods.map(pr=>pr.id);
+    const compras=purchaseHistory.filter(h=>pids.includes(h.productId));
+    comprasBody.innerHTML=compras.length?compras.slice().reverse().map(h=>`<tr>
+      <td>${h.date||'—'}</td><td>${h.productTitle||'—'}</td>
+      <td>${h.qty}</td><td>${fmtM(h.cost)}</td>
+      <td style="color:var(--accent);font-weight:600">${fmtM(h.cost*h.qty)}</td>
+      <td><span style="font-size:.7rem;color:${h.pago==='transferencia'?'var(--blue)':'var(--green)'}">${h.pago==='transferencia'?'💳':'💵'}</span></td>
+    </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted)">Sin compras registradas</td></tr>';
+  }
+  document.getElementById('detalleProveedorModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeDetalleProveedor(){
+  document.getElementById('detalleProveedorModal').classList.remove('open');
+  document.body.style.overflow='';
+  currentProveedorId=null;
+  closePagoProveedor();
+}
+function openPagoProveedor(){
+  document.getElementById('dprov_pago_form').style.display='block';
+  const d=document.getElementById('pago_prov_fecha');if(d)d.value=todayStr();
+}
+function closePagoProveedor(){
+  const f=document.getElementById('dprov_pago_form');if(f)f.style.display='none';
+}
+function confirmarPagoProveedor(){
+  const p=proveedores.find(x=>x.id===currentProveedorId);if(!p)return;
+  const importe=parseFloat(document.getElementById('pago_prov_importe')?.value)||0;
+  if(importe<=0){showToast('❌ Ingresá un importe válido');return;}
+  const medio=document.getElementById('pago_prov_medio')?.value||'efectivo';
+  const fecha=document.getElementById('pago_prov_fecha')?.value||todayStr();
+  const nota=document.getElementById('pago_prov_nota')?.value||'';
+  if(!p.movimientos)p.movimientos=[];
+  p.movimientos.push({tipo:'pago',importe,medio,fecha,detalle:nota||`Pago ${medio}`});
+  p.saldo=Math.max(0,(p.saldo||0)-importe);
+  saveProveedores();closePagoProveedor();
+  openDetalleProveedor(currentProveedorId);
+  showToast('✅ Pago registrado — Saldo: '+fmtM(p.saldo));
+}
+
+// Register purchase debt for a provider (called from confirmPurchase when pago='ctacte')
+function registerProveedorDeuda(proveedorName,productTitle,qty,cost,date){
+  const importe=cost*qty;
+  const p=proveedores.find(x=>x.nombre.toLowerCase()===proveedorName.toLowerCase()&&x.ctacte);
+  if(!p)return;
+  if(!p.movimientos)p.movimientos=[];
+  p.movimientos.push({tipo:'deuda',importe,fecha:date,detalle:productTitle+' x'+qty});
+  p.saldo=(p.saldo||0)+importe;
+  saveProveedores();
+}
+
 function renderAll(){renderDashboard();renderGrid();renderTable();}
 
 // ═══ INIT ═════════════════════════════════════════════════════════
@@ -3544,5 +3935,138 @@ renderAll();
 
 </script>
 </div><!-- end app -->
+
+<!-- ═══ PAGE: MÉTRICAS ═══ -->
+<section class="page" id="page-metricas">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">📈 MÉTRICAS</h2>
+    <span style="font-size:.75rem;color:var(--muted)">🔒 Solo administrador</span>
+  </div>
+  <!-- Period filter -->
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1.1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem">
+    <span style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Período:</span>
+    <input type="date" id="met_desde" onchange="renderMetricas()"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.38rem .55rem;font-size:.8rem;font-family:'DM Sans',sans-serif">
+    <span style="color:var(--muted)">→</span>
+    <input type="date" id="met_hasta" onchange="renderMetricas()"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.38rem .55rem;font-size:.8rem;font-family:'DM Sans',sans-serif">
+    <button onclick="setMetricasCurrentMonth()" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:.32rem .6rem;font-size:.72rem;cursor:pointer">📅 Mes actual</button>
+    <button onclick="setMetricasAllTime()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:.32rem .6rem;font-size:.72rem;cursor:pointer">📊 Todo</button>
+    <span id="met_periodo_label" style="font-size:.73rem;color:var(--muted)"></span>
+  </div>
+  <div id="metricasContent">
+    <p style="color:var(--muted);text-align:center;padding:3rem">Seleccioná un período para ver las métricas.</p>
+  </div>
+</section>
+
+<!-- ═══ PAGE: PROVEEDORES ═══ -->
+<section class="page" id="page-proveedores">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">🏭 PROVEEDORES</h2>
+    <button class="nbtn green admin-only" onclick="openNuevoProveedor()">➕ Nuevo proveedor</button>
+  </div>
+  <!-- Total deuda -->
+  <div id="proveedoresTotalDeuda" style="background:var(--surface);border:1px solid rgba(230,57,70,.3);border-radius:12px;padding:.85rem 1.1rem;margin-bottom:1.1rem;display:none">
+    <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Total adeudado a proveedores</div>
+    <div id="proveedoresDeudaTotal" style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent)">$0</div>
+  </div>
+  <div id="proveedoresList">
+    <p style="color:var(--muted);text-align:center;padding:3rem">No hay proveedores registrados.</p>
+  </div>
+</section>
+
+<!-- ═══ MODAL: NUEVO PROVEEDOR ═══ -->
+<div class="modal-overlay" id="nuevoProveedorModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title" id="nprovTitle">🏭 NUEVO PROVEEDOR</div>
+      <button class="modal-close" onclick="closeNuevoProveedor()">✕</button>
+    </div>
+    <div class="fg">
+      <div class="fgroup full"><label>Nombre *</label><input type="text" id="nprov_nombre" placeholder="Nombre del proveedor..."></div>
+      <div class="fgroup full"><label>Dirección / Ubicación</label><input type="text" id="nprov_dir" placeholder="Ej: Bogotá 3055, CABA..."></div>
+      <div class="fgroup"><label>Teléfono / WhatsApp</label><input type="text" id="nprov_tel" placeholder="11 xxxx-xxxx"></div>
+      <div class="fgroup"><label>Instagram</label><input type="text" id="nprov_ig" placeholder="@usuario"></div>
+      <div class="fgroup full">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" id="nprov_ctacte" onchange="toggleProvCuentaCorriente()">
+          <span>Habilitar cuenta corriente</span>
+          <span style="font-size:.7rem;color:var(--muted)">(permite generar deuda)</span>
+        </label>
+      </div>
+      <div class="fgroup full"><label>Notas</label><input type="text" id="nprov_notas" placeholder="Opcional..."></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarNuevoProveedor()">💾 Guardar</button>
+      <button class="btn btn-secondary" onclick="closeNuevoProveedor()">✕ Cancelar</button>
+      <button class="btn btn-danger" id="nprov_delete_btn" style="display:none" onclick="eliminarProveedor()">🗑️ Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: DETALLE PROVEEDOR ═══ -->
+<div class="modal-overlay" id="detalleProveedorModal">
+  <div class="modal" style="max-width:820px">
+    <div class="modal-header">
+      <div class="modal-title" id="dprov_title">PROVEEDOR</div>
+      <button class="modal-close" onclick="closeDetalleProveedor()">✕</button>
+    </div>
+    <!-- Provider info -->
+    <div id="dprov_info" style="background:var(--surface2);border-radius:9px;padding:.75rem 1rem;margin-bottom:.85rem;display:flex;gap:1.2rem;flex-wrap:wrap;align-items:center">
+    </div>
+    <!-- Account balance if ctacte -->
+    <div id="dprov_saldo_section" style="display:none;margin-bottom:.85rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.6rem">
+        <div>
+          <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Saldo adeudado</div>
+          <div id="dprov_saldo" style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--accent)">$0</div>
+        </div>
+        <button class="btn btn-green" style="font-size:.75rem" onclick="openPagoProveedor()">💰 Registrar pago</button>
+      </div>
+      <div class="tbl-wrap" style="max-height:180px;overflow-y:auto">
+        <table class="hist-tbl" id="dprov_movimientos">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Importe</th></tr></thead>
+          <tbody id="dprov_mov_body"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Products -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.04em;margin-bottom:.6rem;color:var(--muted)">Productos de este proveedor</div>
+    <div id="dprov_productos" style="display:flex;flex-wrap:wrap;gap:.5rem">
+      <p style="color:var(--muted);font-size:.8rem">Sin productos registrados.</p>
+    </div>
+    <!-- Purchases history -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.04em;margin:.85rem 0 .6rem;color:var(--muted)">Historial de compras a este proveedor</div>
+    <div class="tbl-wrap" style="max-height:220px;overflow-y:auto">
+      <table class="hist-tbl" id="dprov_compras_table">
+        <thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Costo unit.</th><th>Total</th><th>Pago</th></tr></thead>
+        <tbody id="dprov_compras_body"></tbody>
+      </table>
+    </div>
+    <!-- Pago modal inline -->
+    <div id="dprov_pago_form" style="display:none;margin-top:.75rem;background:var(--surface2);border-radius:9px;padding:.85rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;margin-bottom:.65rem;color:var(--green)">💰 REGISTRAR PAGO</div>
+      <div class="fg">
+        <div class="fgroup"><label>Importe ($)</label><input type="number" id="pago_prov_importe" min="0" placeholder="0"></div>
+        <div class="fgroup"><label>Medio de pago</label>
+          <select id="pago_prov_medio" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.32rem .5rem;font-size:.82rem;font-family:'DM Sans',sans-serif">
+            <option value="efectivo">💵 Efectivo</option>
+            <option value="transferencia">💳 Transferencia</option>
+          </select>
+        </div>
+        <div class="fgroup"><label>Fecha</label><input type="date" id="pago_prov_fecha"></div>
+        <div class="fgroup full"><label>Nota</label><input type="text" id="pago_prov_nota" placeholder="Opcional..."></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-green" onclick="confirmarPagoProveedor()">✅ Confirmar pago</button>
+        <button class="btn btn-secondary" onclick="closePagoProveedor()">✕ Cancelar</button>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:.75rem">
+      <button class="btn btn-secondary" onclick="editarProveedor(currentProveedorId)">✏️ Editar</button>
+      <button class="btn btn-secondary" onclick="closeDetalleProveedor()">✕ Cerrar</button>
+    </div>
+  </div>
+</div>
 </div><!-- end mainApp -->
 </body>
