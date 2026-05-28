@@ -7735,7 +7735,10 @@ async function loadFromSupabase(){
     }));
 
     // Load jornadas
-    const jorns = await sbFetch('jornadas?select=*&order=fecha.desc');
+    // Solo cargar jornadas de los últimos 90 días
+    const fechaDesde=new Date();fechaDesde.setDate(fechaDesde.getDate()-90);
+    const fechaStr=fechaDesde.toISOString().split('T')[0];
+    const jorns = await sbFetch('jornadas?select=*&fecha=gte.'+fechaStr+'&order=fecha.desc');
     ventasHistory=(jorns||[]).map(j=>({
       id:j.id,fecha:j.fecha,vendedor:j.vendedor,obsDia:j.obs_dia,
       anulada:j.anulada,editLog:j.edit_log||[],
@@ -7753,7 +7756,7 @@ async function loadFromSupabase(){
     }));
 
     // Load caja
-    const cajaData = await sbFetch('caja?select=*&order=fecha.desc');
+    const cajaData = await sbFetch('caja?select=*&fecha=gte.'+fechaStr+'&order=fecha.desc');
     cajaHistory=(cajaData||[]).map(ch=>({
       jornadaId:ch.jornada_id,fecha:ch.fecha,vendedor:ch.vendedor,
       totalVentas:ch.total_ventas,totEfec:ch.tot_efec,totTransf:ch.tot_transf,
@@ -8202,14 +8205,14 @@ function renderGrid(){
       <div class="card-imgs ${imgCls}" onclick="openProductDetail(${p.id})" style="cursor:pointer"><img src="${allImgs[0]||p.img1}" alt="">${img2}</div>
       <div class="card-body">
         <div class="tag">${p.tag}</div><div class="card-title">${p.title}</div>
-        <div class="card-supplier">${p.supplier}${p.provTipo?` <span style="font-size:.6rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.08rem .3rem;margin-left:.3rem">${p.provTipo}</span>`:''}</div>
+        ${isAdminMode?`<div class="card-supplier">${p.supplier}${p.provTipo?` <span style="font-size:.6rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.08rem .3rem;margin-left:.3rem">${p.provTipo}</span>`:''}</div>`:''}
         <div class="prices">
           ${isAdminMode?`<div class="price-row admin-only"><span class="price-label">Costo</span><span class="price-value cost">${p.cost}</span></div>`:''}
-          <div class="price-row"><span class="price-label">Venta ${p.sale1_label}</span><span class="price-value sale-1">${p.sale1} <span style="font-size:.63rem;color:${pc1}">(+${fmtM(c.up1)})</span></span></div>
-          ${c.hasPromo?`<div class="price-row"><span class="price-label">Venta ${p.sale2_label}</span><span class="price-value sale-2">${p.sale2} <span style="font-size:.63rem;color:${pc2}">(+${fmtM(c.up2)})</span></span></div>`:''}
+          <div class="price-row"><span class="price-label">Venta ${p.sale1_label}</span><span class="price-value sale-1" style="color:#000">${p.sale1}${isAdminMode?` <span style="font-size:.63rem;color:${pc1}">(+${fmtM(c.up1)})</span>`:''}</span></div>
+          ${c.hasPromo?`<div class="price-row"><span class="price-label">Venta ${p.sale2_label}</span><span class="price-value sale-2" style="color:#000">${p.sale2}${isAdminMode?` <span style="font-size:.63rem;color:${pc2}">(+${fmtM(c.up2)})</span>`:''}</span></div>`:''}
         </div>
         <div class="divider"></div>
-        <div class="totals"><span class="qty-badge">${p.qty_display}</span><span class="total-cost-lbl">${p.total_cost}</span></div>
+        <div class="totals">${isAdminMode?`<span class="qty-badge">${p.qty_display}</span><span class="total-cost-lbl">${p.total_cost}</span>`:''}</div>
         <div class="sub-sect" style="${ao}">
           <div class="sect-title">🧾 Compra</div>
           <div class="info-grid">
@@ -10463,8 +10466,8 @@ function openProductDetail(id){
         <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem">${p.supplier}</div>
         <div class="prices" style="margin-bottom:.6rem">
           ${isAdminMode?`<div class="price-row admin-only"><span class="price-label">Costo</span><span class="price-value cost">${p.cost}</span></div>`:''}
-          <div class="price-row"><span class="price-label">Venta ${p.sale1_label}</span><span class="price-value sale-1">${p.sale1} <span style="font-size:.63rem;color:${pc1}">(+${fmtM(c.up1)})</span></span></div>
-          ${c.hasPromo?`<div class="price-row"><span class="price-label">Venta ${p.sale2_label}</span><span class="price-value sale-2">${p.sale2} <span style="font-size:.63rem;color:${pc2}">(+${fmtM(c.up2)})</span></span></div>`:''}
+          <div class="price-row"><span class="price-label">Venta ${p.sale1_label}</span><span class="price-value sale-1" style="color:#000">${p.sale1}${isAdminMode?` <span style="font-size:.63rem;color:${pc1}">(+${fmtM(c.up1)})</span>`:''}</span></div>
+          ${c.hasPromo?`<div class="price-row"><span class="price-label">Venta ${p.sale2_label}</span><span class="price-value sale-2" style="color:#000">${p.sale2}${isAdminMode?` <span style="font-size:.63rem;color:${pc2}">(+${fmtM(c.up2)})</span>`:''}</span></div>`:''}
         </div>
         ${ex.obs?`<div style="font-size:.78rem;color:var(--muted);background:var(--surface2);border-radius:7px;padding:.5rem .7rem">📝 ${ex.obs}</div>`:''}
       </div>
