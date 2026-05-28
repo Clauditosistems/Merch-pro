@@ -14393,30 +14393,35 @@ document.addEventListener('DOMContentLoaded', async function(){
   initData();
   const vf=document.getElementById('v_fecha');if(vf)vf.value=todayStr();
 
-  // Verificar sesión activa de Supabase
-  try{
-    const{data:{session}}=await supa.auth.getSession();
-    if(session){
-      // Hay sesión → cargar como usuario logueado
-      currentUser=session.user;
-      const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
-      currentUserRole=roleData?.role||'vendedor';
-      isAdminMode=(currentUserRole==='admin');
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('mainApp').style.display='block';
-      updateModeUI();
-      renderAll();
-      loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
-    } else {
-      // No hay sesión → mostrar login
-      document.getElementById('loginScreen').style.display='flex';
-      document.getElementById('mainApp').style.display='none';
-    }
-  }catch(e){
-    console.warn('Session check error:',e);
-    // Si falla la verificación → mostrar login
+  // Verificar sesión activa de Supabase con timeout
+  const showLogin = () => {
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('mainApp').style.display='none';
+  };
+  const showApp = async (session) => {
+    currentUser=session.user;
+    const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
+    currentUserRole=roleData?.role||'vendedor';
+    isAdminMode=(currentUserRole==='admin');
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    updateModeUI();
+    renderAll();
+    loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
+  };
+
+  // Timeout de 4 segundos — si Supabase no responde, mostrar login
+  const sessionTimeout = setTimeout(()=>{ showLogin(); }, 4000);
+
+  try{
+    const{data:{session}}=await supa.auth.getSession();
+    clearTimeout(sessionTimeout);
+    if(session){ await showApp(session); }
+    else{ showLogin(); }
+  }catch(e){
+    clearTimeout(sessionTimeout);
+    console.warn('Session check error:',e);
+    showLogin();
   }
 });
 </script>
