@@ -7614,7 +7614,39 @@ async function logoutUser(){
 
 // ── SUPABASE DATA FUNCTIONS ──────────────────────────────────────
 // ── SUPABASE FETCH HELPER ─────────────────────────────────────────
+async function _refreshTokenIfNeeded(){
+  try{
+    const sbKey='sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token';
+    const _ls=localStorage.getItem(sbKey);
+    if(!_ls)return;
+    const _p=JSON.parse(_ls);
+    const exp=_p?.expires_at||0;
+    // Si vence en menos de 5 minutos, refrescar
+    if(exp*1000 - Date.now() < 300000){
+      const refreshToken=_p?.refresh_token;
+      if(!refreshToken)return;
+      const r=await fetch(supa.supabaseUrl+'/auth/v1/token?grant_type=refresh_token',{
+        method:'POST',
+        headers:{'apikey':supa.supabaseKey,'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:refreshToken})
+      });
+      if(r.ok){
+        const data=await r.json();
+        if(data.access_token){
+          localStorage.setItem(sbKey,JSON.stringify({
+            access_token:data.access_token,
+            refresh_token:data.refresh_token,
+            user:data.user,
+            expires_at:data.expires_at
+          }));
+        }
+      }
+    }
+  }catch(e){console.warn('Token refresh error:',e);}
+}
+
 async function _sbFetch(method, path, body){
+  await _refreshTokenIfNeeded();
   let token = supa.supabaseKey;
   try{
     const _ls=localStorage.getItem('sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token');
@@ -7633,6 +7665,7 @@ async function loadFromSupabase(){
   const SB_URL = supa.supabaseUrl;
   const SB_KEY = supa.supabaseKey;
   // Obtener token de sesión activa
+  await _refreshTokenIfNeeded();
   let token = SB_KEY;
   try{
     const _ls=localStorage.getItem('sb-'+SB_URL.split('//')[1].split('.')[0]+'-auth-token');
