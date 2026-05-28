@@ -7541,7 +7541,6 @@ async function loginUser(){
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPassword').value;
   const btn=document.getElementById('loginBtn');
-  const errEl=document.getElementById('loginError');
   if(!email||!pass){showLoginError('Completá email y contraseña');return;}
   btn.textContent='Ingresando...';btn.disabled=true;
   const{data,error}=await supa.auth.signInWithPassword({email,password:pass});
@@ -7549,13 +7548,20 @@ async function loginUser(){
   if(error){showLoginError(error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message);return;}
   if(data.user){
     currentUser=data.user;
-    const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
-    currentUserRole=roleData?.role||'admin';
-    isAdminMode=true;
+    // fetch directo para evitar problema de promesas con librería supabase
+    try{
+      const r=await fetch(supa.supabaseUrl+'/rest/v1/user_roles?select=role,name&id=eq.'+currentUser.id+'&limit=1',{
+        headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+data.session.access_token}
+      });
+      const roleArr=await r.json();
+      const roleData=roleArr[0]||{};
+      currentUserRole=roleData.role||'vendedor';
+    }catch(e){ currentUserRole='vendedor'; }
+    isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
     updateModeUI();
-    await loadFromSupabase();
+    loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
   }
 }
 
@@ -7591,19 +7597,45 @@ async function logoutUser(){
 }
 
 // ── SUPABASE DATA FUNCTIONS ──────────────────────────────────────
+// ── SUPABASE FETCH HELPER ─────────────────────────────────────────
+async function _sbFetch(method, path, body){
+  let token = supa.supabaseKey;
+  try{const s=await supa.auth.getSession();if(s?.data?.session?.access_token)token=s.data.session.access_token;}catch(e){}
+  const opts={method,headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'}};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(supa.supabaseUrl+'/rest/v1/'+path,opts);
+  if(!r.ok){const t=await r.text();throw new Error('HTTP '+r.status+': '+t);}
+  const txt=await r.text();
+  return txt?JSON.parse(txt):null;
+}
+
 async function loadFromSupabase(){
   showToast('⏳ Cargando datos...');
+  const SB_URL = supa.supabaseUrl;
+  const SB_KEY = supa.supabaseKey;
+  // Obtener token de sesión activa
+  let token = SB_KEY;
   try{
-    // Load products (metadata only, images come from PRODUCTS_DEFAULT)
-    const{data:prods}=await supa.from('products').select('*').eq('active',true).order('id');
+    const sess = await supa.auth.getSession();
+    if(sess?.data?.session?.access_token) token = sess.data.session.access_token;
+  }catch(e){}
+  const sbFetch = async (path) => {
+    const r = await fetch(SB_URL + '/rest/v1/' + path, {
+      headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + token}
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status + ' on ' + path);
+    return r.json();
+  };
+  try{
+    // Load products
+    const prods = await sbFetch('products?select=*&active=eq.true&order=id');
     if(prods&&prods.length){
       products=PRODUCTS_DEFAULT.map(def=>{
         const sv=prods.find(p=>p.id===def.id);
         if(!sv)return{...def};
-        // Usar imágenes de Supabase Storage si existen, sino usar PRODUCTS_DEFAULT
-        const img1Final = (sv.img1 && sv.img1.includes('supabase.co/storage')) ? sv.img1 : def.img1;
-        const img2Final = (sv.img2 && sv.img2.includes('supabase.co/storage')) ? sv.img2 : (def.img2||'');
-        const imgsFinal = (sv.imgs && sv.imgs.length && sv.imgs[0] && sv.imgs[0].includes('supabase.co/storage')) ? sv.imgs : def.imgs;
+        const img1Final=(sv.img1&&sv.img1.includes('supabase.co/storage'))?sv.img1:def.img1;
+        const img2Final=(sv.img2&&sv.img2.includes('supabase.co/storage'))?sv.img2:(def.img2||'');
+        const imgsFinal=(sv.imgs&&sv.imgs.length&&sv.imgs[0]&&sv.imgs[0].includes('supabase.co/storage'))?sv.imgs:def.imgs;
         return{...def,
           title:sv.title||def.title,
           supplier:sv.supplier||def.supplier,
@@ -7613,10 +7645,11 @@ async function loadFromSupabase(){
           sale2:sv.sale2||def.sale2,
           sale2_label:sv.sale2_label||def.sale2_label,
           tag:sv.tag||def.tag,
-          img1:img1Final, img2:img2Final, imgs:imgsFinal
+          barcode:sv.barcode||def.barcode||'',
+          provTipo:sv.provTipo||def.provTipo||'',
+          img1:img1Final,img2:img2Final,imgs:imgsFinal
         };
       });
-      // Add any new products not in PRODUCTS_DEFAULT
       const defIds=new Set(PRODUCTS_DEFAULT.map(d=>d.id));
       prods.filter(p=>!defIds.has(p.id)).forEach(p=>{
         products.push({...p,imgs:p.imgs||[p.img1,p.img2].filter(Boolean)});
@@ -7624,33 +7657,29 @@ async function loadFromSupabase(){
       nextId=Math.max(44,...products.map(p=>p.id))+1;
     }else{
       products=PRODUCTS_DEFAULT.map(p=>({...p}));
-  // Asignar barcode al producto vintage si no lo tiene
-  const vintProd=products.find(p=>p.id===VINTAGE_ID);
-  if(vintProd&&!vintProd.barcode)vintProd.barcode=generateBarcode(VINTAGE_ID);
+      const vintProd=products.find(p=>p.id===VINTAGE_ID);
+      if(vintProd&&!vintProd.barcode)vintProd.barcode=generateBarcode(VINTAGE_ID);
     }
 
     // Load stock
-    const{data:stockData}=await supa.from('stock').select('*');
+    const stockData = await sbFetch('stock?select=*');
     stockMap={};
-        products.forEach(p=>{
+    products.forEach(p=>{
       const s=stockData?.find(x=>x.product_id===p.id);
       stockMap[p.id]=s?s.qty:0;
     });
-
-    // Actualizar qty_num en products con stock real de Supabase
-    products.forEach(p=>{ p.qty_num = stockMap[p.id] !== undefined ? stockMap[p.id] : 0; });
+    products.forEach(p=>{ p.qty_num=stockMap[p.id]!==undefined?stockMap[p.id]:0; });
 
     // Load purchases
-    const{data:purch}=await supa.from('purchases').select('*').order('date',{ascending:false});
+    const purch = await sbFetch('purchases?select=*&order=date.desc');
     purchaseHistory=(purch||[]).map(p=>({
       id:p.id,productId:p.product_id,productTitle:p.product_title,
       date:p.date,qty:p.qty,cost:p.cost,sale1:p.sale1,sale2:p.sale2,
       note:p.note,pago:p.pago
     }));
-    // Sin fallback — historial desde Supabase
 
     // Load jornadas
-    const{data:jorns}=await supa.from('jornadas').select('*').order('fecha',{ascending:false});
+    const jorns = await sbFetch('jornadas?select=*&order=fecha.desc');
     ventasHistory=(jorns||[]).map(j=>({
       id:j.id,fecha:j.fecha,vendedor:j.vendedor,obsDia:j.obs_dia,
       anulada:j.anulada,editLog:j.edit_log||[],
@@ -7668,7 +7697,7 @@ async function loadFromSupabase(){
     }));
 
     // Load caja
-    const{data:cajaData}=await supa.from('caja').select('*').order('fecha',{ascending:false});
+    const cajaData = await sbFetch('caja?select=*&order=fecha.desc');
     cajaHistory=(cajaData||[]).map(ch=>({
       jornadaId:ch.jornada_id,fecha:ch.fecha,vendedor:ch.vendedor,
       totalVentas:ch.total_ventas,totEfec:ch.tot_efec,totTransf:ch.tot_transf,
@@ -7681,72 +7710,41 @@ async function loadFromSupabase(){
     }));
 
     // Load proveedores
-    const{data:provData}=await supa.from('proveedores').select('*');
+    const provData = await sbFetch('proveedores?select=*');
     if(provData&&provData.length){
       proveedores=provData.map(p=>({
-        id:p.id, nombre:p.nombre, tipo:p.tipo||'',
-        dir:p.dir||'', tel:p.tel||'', ig:p.ig||'',
-        notas:p.notas||'', ctacte:p.ctacte||false,
-        saldo:p.saldo||0, movimientos:p.movimientos||[]
+        id:p.id,nombre:p.nombre,tipo:p.tipo||'',
+        dir:p.dir||'',tel:p.tel||'',ig:p.ig||'',
+        notas:p.notas||'',ctacte:p.ctacte||false,
+        saldo:p.saldo||0,movimientos:p.movimientos||[]
       }));
     }
 
     // Load product_extra
-    const{data:extraData}=await supa.from('product_extra').select('*');
+    const extraData = await sbFetch('product_extra?select=*');
     if(extraData&&extraData.length){
       extraMap={};
       extraData.forEach(e=>{ extraMap[e.product_id]=e.data||{}; });
     }
 
-    // Load stock adjustments - solo si Supabase devuelve datos reales
-    const{data:adjData}=await supa.from('stock_adjustments').select('*').order('created_at',{ascending:false});
+    // Load stock adjustments
+    const adjData = await sbFetch('stock_adjustments?select=*&order=created_at.desc');
     if(adjData&&adjData.length>0) window.stockAdjustments=adjData;
-    // Si Supabase no tiene datos, conservar los de localStorage (ya cargados en initData)
 
     showToast('✅ Datos cargados');
     renderAll();
   }catch(err){
     console.error('Error loading from Supabase:',err);
     showToast('❌ Error cargando datos: '+err.message);
-    // Fallback to defaults
     products=PRODUCTS_DEFAULT.map(p=>({...p}));
-  // Asignar barcode al producto vintage si no lo tiene
-  const vintProd=products.find(p=>p.id===VINTAGE_ID);
-  if(vintProd&&!vintProd.barcode)vintProd.barcode=generateBarcode(VINTAGE_ID);
+    const vintProd=products.find(p=>p.id===VINTAGE_ID);
+    if(vintProd&&!vintProd.barcode)vintProd.barcode=generateBarcode(VINTAGE_ID);
     renderAll();
   }
 }
 
-async function saveAll(){
-  const toSave=products.map(p=>{
-    const c={...p};
-    const def=PRODUCTS_DEFAULT.find(d=>d.id===p.id);
-    if(def&&c.img1===def.img1)delete c.img1;
-    if(def&&c.img2===def.img2)delete c.img2;
-    if(def&&JSON.stringify(c.imgs)===JSON.stringify(def.imgs))delete c.imgs;
-    return c;
-  });
-  // Supabase primero
-  _syncStockSupabase();
-  _syncProveedoresSupabase();
-  _syncExtraSupabase();
-  _syncAjustesSupabase();
-  // localStorage como respaldo
-  try{
-    localStorage.setItem(SK,JSON.stringify(toSave));
-    localStorage.setItem(STK,JSON.stringify(stockMap));
-    localStorage.setItem(EXK,JSON.stringify(extraMap));
-    localStorage.setItem(HCK,JSON.stringify(purchaseHistory));
-    localStorage.setItem(HVK,JSON.stringify(ventasHistory));
-    localStorage.setItem(CKAY,JSON.stringify(cajaHistory));
-    saveProveedores();
-    saveCajaIvo();
-    localStorage.setItem('mv6_ajustes',JSON.stringify(window.stockAdjustments||[]));
-  }catch(e){console.warn('localStorage backup error:',e);}
-}
-
 async function saveJornada(jornada){
-  await supa.from('jornadas').insert({
+  await _sbFetch('POST','jornadas',{
     id:jornada.id,fecha:jornada.fecha,vendedor:jornada.vendedor,
     obs_dia:jornada.obsDia,anulada:jornada.anulada,edit_log:jornada.editLog||[],
     cc_inicio:jornada.ccInicio,efec_real:jornada.efecReal,cc_final:jornada.ccFinal,
@@ -7764,7 +7762,7 @@ async function saveJornada(jornada){
 }
 
 async function saveCajaEntry(ch){
-  await supa.from('caja').insert({
+  await _sbFetch('POST','caja',{
     jornada_id:ch.jornadaId,fecha:ch.fecha,vendedor:ch.vendedor,
     total_ventas:ch.totalVentas,tot_efec:ch.totEfec,tot_transf:ch.totTransf,
     total_gastos:ch.totalGastos,comisiones:ch.comisiones,
@@ -7777,12 +7775,12 @@ async function saveCajaEntry(ch){
 }
 
 async function savePurchase(ph){
-  const{data}=await supa.from('purchases').insert({
+  const data=await _sbFetch('POST','purchases?select=id',{
     product_id:ph.productId,product_title:ph.productTitle,
     date:ph.date,qty:ph.qty,cost:ph.cost,
     sale1:ph.sale1,sale2:ph.sale2,note:ph.note,pago:ph.pago
-  }).select().single();
-  if(data)ph.id=data.id;
+  });
+  if(data&&data[0])ph.id=data[0].id;
 }
 
 async function saveProduct(prod){
@@ -7803,7 +7801,7 @@ async function saveProduct(prod){
     obs:prod.obs||'',active:true,
     img1:prod.img1||'', img2:prod.img2||'', imgs:prod.imgs||[]
   };
-  await supa.from('products').upsert(row,{onConflict:'id'});
+  await _sbFetch('POST','products?on_conflict=id',row);
 }
 
 // ── SESSION INIT ─────────────────────────────────────────────────
@@ -7812,9 +7810,12 @@ async function saveProduct(prod){
 supa.auth.onAuthStateChange(async(event,session)=>{
   if(session){
     currentUser=session.user;
-    const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
-    currentUserRole=roleData?.role||'admin';
-    isAdminMode=true;
+    try{
+      const roleArr=await _sbFetch('GET','user_roles?select=role,name&id=eq.'+currentUser.id+'&limit=1');
+      const roleData=(roleArr&&roleArr[0])||{};
+      currentUserRole=roleData.role||'vendedor';
+    }catch(e){currentUserRole='vendedor';}
+    isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
     updateModeUI();
@@ -7952,14 +7953,14 @@ function saveAll(){
 function _syncProveedoresSupabase(){
   if(!currentUser||currentUser.email==='local')return;
   if(!proveedores.length)return;
-  supa.from('proveedores').upsert(
+  _sbFetch('POST','proveedores?on_conflict=id',
     proveedores.map(p=>({
       id:p.id,nombre:p.nombre,tipo:p.tipo||'',
       dir:p.dir||'',tel:p.tel||'',ig:p.ig||'',
       notas:p.notas||'',ctacte:p.ctacte||false,
       saldo:p.saldo||0,movimientos:p.movimientos||[]
-    })),{onConflict:'id'}
-  ).then(({error})=>{if(error)console.warn('Proveedores sync error:',error.message);}).catch(()=>{});
+    }))
+  ).catch(e=>console.warn('Proveedores sync error:',e.message));
 }
 function _syncExtraSupabase(){
   if(!currentUser||currentUser.email==='local')return;
@@ -7967,9 +7968,10 @@ function _syncExtraSupabase(){
     product_id:parseInt(pid),data,updated_at:new Date().toISOString()
   }));
   if(!rows.length)return;
-  supa.from('product_extra').upsert(rows,{onConflict:'product_id'})
-    .then(({error})=>{if(error)console.warn('Extra sync error:',error.message);}).catch(()=>{});
+  _sbFetch('POST','product_extra?on_conflict=product_id',rows)
+    .catch(e=>console.warn('Extra sync error:',e.message));
 }
+
 function _syncAjustesSupabase(){
   if(!currentUser||currentUser.email==='local')return;
   const ajustes=window.stockAdjustments||[];
@@ -7980,17 +7982,17 @@ function _syncAjustesSupabase(){
     total_faltantes:a.totalFaltantes||0,
     valor_perdida:a.valorImpacto||a.valor_perdida||0
   }));
-  supa.from('stock_adjustments').upsert(rows,{onConflict:'id'})
-    .then(({error})=>{if(error)console.warn('Ajustes sync error:',error.message);}).catch(()=>{});
+  _sbFetch('POST','stock_adjustments?on_conflict=id',rows)
+    .catch(e=>console.warn('Ajustes sync error:',e.message));
 }
+
 function _syncStockSupabase(){
   const stockRows=Object.entries(stockMap).map(([pid,qty])=>({
     product_id:parseInt(pid),qty,updated_at:new Date().toISOString()
   }));
   if(!stockRows.length)return;
-  supa.from('stock').upsert(stockRows,{onConflict:'product_id'})
-    .then(({error})=>{if(error)console.warn('Stock sync error:',error.message);})
-    .catch(()=>{});
+  _sbFetch('POST','stock?on_conflict=product_id',stockRows)
+    .catch(e=>console.warn('Stock sync error:',e.message));
 }
 
 // ══ STOCK / PROFIT ════════════════════════════════════════════════
@@ -14400,8 +14402,15 @@ document.addEventListener('DOMContentLoaded', async function(){
   };
   const showApp = async (session) => {
     currentUser=session.user;
-    const{data:roleData}=await supa.from('user_roles').select('role,name').eq('id',currentUser.id).single();
-    currentUserRole=roleData?.role||'vendedor';
+    // Usar fetch directo para evitar problema de promesas con librería supabase
+    try{
+      const r=await fetch(supa.supabaseUrl+'/rest/v1/user_roles?select=role,name&id=eq.'+currentUser.id+'&limit=1',{
+        headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+session.access_token}
+      });
+      const roleArr=await r.json();
+      const roleData=roleArr[0]||{};
+      currentUserRole=roleData.role||'vendedor';
+    }catch(e){ currentUserRole='vendedor'; }
     isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
