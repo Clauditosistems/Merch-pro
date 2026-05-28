@@ -403,6 +403,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="nav-tab admin-only" onclick="showPage('cajaIvo',this)" style="">💰 Caja Ivo</button>
     <button class="nav-tab admin-only" onclick="showPage('costosFijos',this)" style="">📋 Costos Fijos</button>
     <button class="nav-tab admin-only" onclick="showPage('patrimonio',this)" style="">🏛️ Patrimonio</button>
+    <button class="nav-tab admin-only" onclick="showPage('configuracion',this)" style="">⚙️ Configuración</button>
   </div>
   <div class="nav-right">
     <span class="mode-badge admin" id="modeBadge">🔑 ADMIN</span>
@@ -7350,7 +7351,7 @@ const PRODUCTS_DEFAULT = [
 {id:24,tag:"Pantalones",title:"Jean Wide Oliver",supplier:"MOJO",cost:"$21.000",sale1:"$45.000",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:6,qty_display:"6 unidades",total_cost:"$126.000",single:false,img1:"",img2:"",imgs:[""],provTipo:"Flores",barcode:"20000246"},
 {id:25,tag:"Pantalones",title:"Jean Recto Clásico Zaira",supplier:"Zaira",cost:"$14.000",sale1:"$30.000",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:10,qty_display:"10 unidades",total_cost:"$140.000",single:true,img1:"",img2:"",imgs:[""],provTipo:"Flores",barcode:"20000253"},
 {id:26,tag:"Pantalones",title:"Jean Negro Wide Leg Semielastizado Zaira",supplier:"Zaira",cost:"$19.500",sale1:"$45.000",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:8,qty_display:"8 unidades",total_cost:"$156.000",single:false,img1:"",img2:"",imgs:[""],provTipo:"Flores",barcode:"20000261"},
-{id:9999,tag:"Vintage",title:"VINTAGE",supplier:"Fardos",cost:"$0",sale1:"$0",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:0,qty_display:"Sin stock",total_cost:"$0",single:true,img1:"",img2:"",imgs:[""],isVintageProduct:true,barcode:"20099990",provTipo:""},
+{id:9999,tag:"Vintage",title:"VINTAGE",supplier:"Fardos",cost:"$0",sale1:"$0",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:100000,qty_display:"∞ unidades",total_cost:"$0",single:true,img1:"",img2:"",imgs:[""],isVintageProduct:true,barcode:"20099990",provTipo:""},
 {id:10000,tag:"Buzos",title:"Buzo barato caracas",supplier:"CARACAS",provTipo:"Oportunidades",cost:"$6.000",sale1:"$10.000",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:37,qty_display:"37 unidades",total_cost:"$222.000",single:true,barcode:"20100004",img1:"",imgs:[""],img2:undefined},
 {id:10001,tag:"General",title:"Body Reductor CARACAS",supplier:"CARACAS",provTipo:"Oportunidades",cost:"$5.000",sale1:"$15.000",sale1_label:"x1",sale2:"$0",sale2_label:"x2",qty_num:4,qty_display:"4 unidades",total_cost:"$20.000",single:true,img1:"",img2:"",imgs:[""],barcode:"20100012"},
 {id:10002,tag:"Buzos",title:"Buzito crop mujer",supplier:"JELLY",provTipo:"Flores",cost:"$11.000",sale1:"$25.000",sale1_label:"x1",sale2:"$40.000",sale2_label:"x2",qty_num:6,qty_display:"6 unidades",total_cost:"$66.000",single:true,img1:"",img2:"",imgs:[""],barcode:"20100020"},
@@ -7900,7 +7901,7 @@ function initData(){
     existingVint.supplier='Fardos';
     existingVint.provTipo='Fardos';
     existingVint.isVintageProduct=true;
-    existingVint.qty_num=0;
+    existingVint.qty_num=100000; // Stock infinito
   }
   const vintProd=products.find(p=>p.id===VINTAGE_ID);
   if(vintProd&&!vintProd.barcode)vintProd.barcode=generateBarcode(VINTAGE_ID);
@@ -8120,6 +8121,7 @@ function checkPin(){
 
 // ══ NAV ═══════════════════════════════════════════════════════════
 function showPage(id,btn){
+  if(id==='configuracion') setTimeout(initConfigPage,50);
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -8263,11 +8265,26 @@ function updateStock(id,val){
 // ══ SUMMARY TABLE ═════════════════════════════════════════════════
 function renderTable(){
   let ti=0,tp=0,tpr=0,te=0;
+  const isAdmin = isAdminMode;
+  const header = document.querySelector('#page-stock table thead tr');
+  if(header){
+    header.innerHTML = isAdmin
+      ? '<th>#</th><th style="text-align:left">Producto</th><th>Stock</th><th>Costo total</th><th>Precio x1</th><th>Val. potencial</th><th>Gan. potencial</th><th>Margen</th><th>Gan. estimada</th>'
+      : '<th>#</th><th style="text-align:left">Producto</th><th>Stock</th><th>Precio x1</th>';
+  }
   const rows=products.map((p,i)=>{
     const c=calcProfit(p);ti+=c.totalBuy;tp+=c.potSales;tpr+=c.potProfit;te+=c.earnedProfit;
-    return `<tr><td>${i+1}</td><td style="text-align:left;white-space:normal;max-width:170px">${p.title}</td><td>${p.qty_display}</td><td>${fmtM(c.totalBuy)}</td><td>${p.sale1}</td><td>${fmtM(c.potSales)}</td><td style="color:var(--green)">${fmtM(c.potProfit)}</td><td style="color:var(--yellow)">${c.mgHigh}%</td><td style="color:var(--green)">${fmtM(c.earnedProfit)}</td></tr>`;
+    if(isAdmin){
+      return `<tr><td>${i+1}</td><td style="text-align:left;white-space:normal;max-width:170px">${p.title}</td><td>${p.qty_display}</td><td>${fmtM(c.totalBuy)}</td><td>${p.sale1}</td><td>${fmtM(c.potSales)}</td><td style="color:var(--green)">${fmtM(c.potProfit)}</td><td style="color:var(--yellow)">${c.mgHigh}%</td><td style="color:var(--green)">${fmtM(c.earnedProfit)}</td></tr>`;
+    } else {
+      return `<tr><td>${i+1}</td><td style="text-align:left;white-space:normal;max-width:170px">${p.title}</td><td>${p.qty_display}</td><td>${p.sale1}</td></tr>`;
+    }
   }).join('');
-  document.getElementById('summaryBody').innerHTML=rows+`<tr class="gr-row"><td colspan="3">TOTALES</td><td>${fmtM(ti)}</td><td>—</td><td>${fmtM(tp)}</td><td>${fmtM(tpr)}</td><td>—</td><td>${fmtM(te)}</td></tr>`;
+  if(isAdmin){
+    document.getElementById('summaryBody').innerHTML=rows+`<tr class="gr-row"><td colspan="3">TOTALES</td><td>${fmtM(ti)}</td><td>—</td><td>${fmtM(tp)}</td><td>${fmtM(tpr)}</td><td>—</td><td>${fmtM(te)}</td></tr>`;
+  } else {
+    document.getElementById('summaryBody').innerHTML=rows;
+  }
 }
 
 // ══ CARRITO ═══════════════════════════════════════════════════════
@@ -8650,7 +8667,7 @@ function abrirCierreModal(){
   const vendedoresPrev=ventaRows.map(t=>t.vendedor||'').filter(Boolean);
   const vcPrev={};vendedoresPrev.forEach(v=>vcPrev[v]=(vcPrev[v]||0)+1);
   const vendedorPrev=vendedoresPrev.length?Object.entries(vcPrev).sort((a,b)=>b[1]-a[1])[0][0]:'—';
-  const stats=[
+  const stats = isAdminMode ? [
     ['Total ventas',fmtM(totV),'yellow'],['Efectivo',fmtM(totEfec),'green'],
     ['Transfer.',fmtM(totTransf),'blue'],['Gastos',fmtM(totGastos),'red'],
     ['Comisión (6%)',fmtM(comisionesPrev),'red'],
@@ -8659,6 +8676,13 @@ function abrirCierreModal(){
     ['Descuentos',fmtM(totalDesc),'red'],['Clientes',clientesHoy,'yellow'],
     ['Dif. caja',fmtM(diff),diff>=0?'green':'red'],
     ['Vendedor',vendedorPrev,''],
+    ['Fecha',document.getElementById('v_fecha')?.value||todayStr(),'']
+  ] : [
+    ['Total ventas',fmtM(totV),'yellow'],['Efectivo',fmtM(totEfec),'green'],
+    ['Transfer.',fmtM(totTransf),'blue'],['Gastos',fmtM(totGastos),'red'],
+    ['Tickets',ventaRows.length,''],['Prendas',totalPrendas,'purple'],
+    ['Vintage',totalVintage,'purple'],['Descuentos',fmtM(totalDesc),'red'],
+    ['Clientes',clientesHoy,'yellow'],['Dif. caja',fmtM(diff),diff>=0?'green':'red'],
     ['Fecha',document.getElementById('v_fecha')?.value||todayStr(),'']
   ];
   document.getElementById('cierreStats').innerHTML=stats.map(([l,v,c])=>`
@@ -8709,7 +8733,7 @@ function confirmarGuardar(){
   const costoTransferencias=Math.round(totTransf*0.04);
   const baseNeta=totV-costoTransferencias;
   // Comisiones: 6% sobre base neta (si aplica toggle)
-  const aplicaComision=document.getElementById('comision-toggle')?.checked!==false;
+  const aplicaComision=isAdminMode?(document.getElementById('comision-toggle')?.checked!==false):true;
   const comisiones=aplicaComision?Math.round(baseNeta*0.06):0;
   // CMV: costo total de mercadería vendida
   let cmv=0;
@@ -14439,6 +14463,60 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
   </div>
 </section>
 
+<!-- PAGE: CONFIGURACIÓN -->
+  <section class="page" id="page-configuracion">
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em;margin-bottom:1.2rem">⚙️ CONFIGURACIÓN</h2>
+    
+    <div style="display:grid;gap:1rem;max-width:700px">
+      
+      <!-- Objetivo diario -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.8rem;font-size:1rem">🎯 Objetivo diario de ventas</h3>
+        <div style="display:flex;gap:.6rem;align-items:center">
+          <input type="number" id="cfg-objetivo" placeholder="1000000" style="flex:1;padding:.6rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.95rem">
+          <button class="nbtn green" onclick="guardarObjetivo()">Guardar</button>
+        </div>
+      </div>
+
+      <!-- Comisión -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.8rem;font-size:1rem">💰 Comisión de vendedor</h3>
+        <div style="display:flex;gap:.6rem;align-items:center">
+          <label style="font-size:.9rem">Aplicar comisión por defecto:</label>
+          <input type="checkbox" id="cfg-comision-default" checked style="width:18px;height:18px;cursor:pointer">
+        </div>
+        <div style="display:flex;gap:.6rem;align-items:center;margin-top:.6rem">
+          <label style="font-size:.9rem">Porcentaje (%):</label>
+          <input type="number" id="cfg-comision-pct" value="6" min="0" max="100" style="width:80px;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+          <button class="nbtn" onclick="guardarConfigComision()">Guardar</button>
+        </div>
+      </div>
+
+      <!-- Carga masiva Excel -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.4rem;font-size:1rem">📊 Carga masiva de productos desde Excel</h3>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem">El archivo Excel debe tener columnas: <strong>titulo, costo, cantidad, rubro, precio_venta, precio_oferta, proveedor</strong></p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+          <input type="file" id="cfg-excel-file" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem">
+          <button class="nbtn green" onclick="cargarDesdeExcel()">📥 Cargar productos</button>
+        </div>
+        <div id="cfg-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"></div>
+        <div id="cfg-excel-log" style="margin-top:.6rem;font-size:.82rem;max-height:200px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Usuarios -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.8rem;font-size:1rem">👥 Usuarios del sistema</h3>
+        <div id="cfg-usuarios-list" style="font-size:.9rem">
+          <div style="padding:.4rem 0;border-bottom:1px solid var(--border)">📧 clauditosistemasia@gmail.com — <strong style="color:var(--accent)">Admin</strong></div>
+          <div style="padding:.4rem 0;border-bottom:1px solid var(--border)">📧 ivomaster1985@gmail.com — <strong style="color:var(--yellow)">Vendedor</strong></div>
+          <div style="padding:.4rem 0">📧 vendedoresmerchpro@gmail.com — <strong style="color:var(--yellow)">Vendedor</strong></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
 <!-- end mainApp -->
 <script>
 // Arranque: verificar sesión Supabase
@@ -14468,6 +14546,9 @@ document.addEventListener('DOMContentLoaded', async function(){
     document.getElementById('mainApp').style.display='block';
     updateModeUI();
     renderAll();
+    // Limpiar ventas locales — fuente de verdad es Supabase
+    localStorage.removeItem('mv6_ventas');
+    localStorage.removeItem('mv6_caja');
     loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
   };
 
@@ -14495,6 +14576,9 @@ document.addEventListener('DOMContentLoaded', async function(){
           document.getElementById('mainApp').style.display='block';
           updateModeUI();
           renderAll();
+          // Limpiar ventas locales — fuente de verdad es Supabase
+          localStorage.removeItem('mv6_ventas');
+          localStorage.removeItem('mv6_caja');
           loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
           return;
         }
@@ -14504,5 +14588,126 @@ document.addEventListener('DOMContentLoaded', async function(){
   // No hay sesión válida → mostrar login
   showLogin();
 });
+
+// ── CONFIGURACIÓN ─────────────────────────────────────────────────
+function guardarObjetivo(){
+  const val=parseFloat(document.getElementById('cfg-objetivo')?.value)||0;
+  if(!val){showToast('❌ Ingresá un valor válido');return;}
+  objetivoDiario=val;
+  localStorage.setItem('mv6_objetivo',val);
+  updateObjetivo();
+  showToast('✅ Objetivo guardado: '+fmtM(val));
+}
+
+function guardarConfigComision(){
+  const pct=parseFloat(document.getElementById('cfg-comision-pct')?.value)||6;
+  localStorage.setItem('mv6_comision_pct',pct);
+  showToast('✅ Comisión guardada: '+pct+'%');
+}
+
+async function cargarDesdeExcel(){
+  const file=document.getElementById('cfg-excel-file')?.files[0];
+  if(!file){showToast('❌ Seleccioná un archivo');return;}
+  const log=document.getElementById('cfg-excel-log');
+  const preview=document.getElementById('cfg-excel-preview');
+  log.innerHTML='<span style="color:var(--accent)">Procesando...</span>';
+  
+  try{
+    const reader=new FileReader();
+    reader.onload=async function(e){
+      try{
+        // Parse CSV or Excel
+        let rows=[];
+        const text=e.target.result;
+        
+        if(file.name.endsWith('.csv')){
+          // Parse CSV
+          const lines=text.split('\n').filter(l=>l.trim());
+          const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+          rows=lines.slice(1).map(line=>{
+            const vals=line.split(',').map(v=>v.trim().replace(/['"]/g,''));
+            const obj={};
+            headers.forEach((h,i)=>obj[h]=vals[i]||'');
+            return obj;
+          });
+        } else {
+          log.innerHTML='<span style="color:var(--red)">Para .xlsx usá la versión CSV. Guardá el Excel como CSV (UTF-8) primero.</span>';
+          return;
+        }
+        
+        if(!rows.length){log.innerHTML='<span style="color:var(--red)">No se encontraron filas</span>';return;}
+        
+        preview.innerHTML=`${rows.length} productos encontrados`;
+        let added=0,errors=0;
+        
+        for(const row of rows){
+          const titulo=row.titulo||row.title||row.nombre||row.producto||'';
+          const costo=parseFloat((row.costo||row.cost||'0').replace(/[.$,]/g,''))||0;
+          const cantidad=parseInt(row.cantidad||row.qty||row.stock||'0')||0;
+          const rubro=row.rubro||row.tag||row.categoria||'General';
+          const precio=parseFloat((row.precio_venta||row.precio||row.sale1||'0').replace(/[.$,]/g,''))||0;
+          const oferta=parseFloat((row.precio_oferta||row.sale2||'0').replace(/[.$,]/g,''))||0;
+          const proveedor=row.proveedor||row.supplier||'';
+          
+          if(!titulo){errors++;continue;}
+          
+          const newId=nextId++;
+          const newP={
+            id:newId,tag:rubro,title:titulo,supplier:proveedor,
+            cost:'$'+costo.toLocaleString('es-AR'),
+            sale1:'$'+precio.toLocaleString('es-AR'),sale1_label:'x1',
+            sale2:'$'+oferta.toLocaleString('es-AR'),sale2_label:'x2',
+            qty_num:cantidad,qty_display:cantidad+' unidades',
+            total_cost:'$'+(costo*cantidad).toLocaleString('es-AR'),
+            single:true,img1:'',img2:'',imgs:[],obs:'',active:true,
+            barcode:generateBarcode(newId),provTipo:''
+          };
+          
+          products.push(newP);
+          stockMap[newId]=cantidad;
+          extraMap[newId]={date:'',obs:''};
+          
+          // Guardar en Supabase
+          try{
+            await _sbFetch('POST','products?on_conflict=id',{
+              id:newId,tag:rubro,title:titulo,supplier:proveedor,
+              cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',
+              sale2:newP.sale2,sale2_label:'x2',
+              qty_num:cantidad,qty_display:newP.qty_display,
+              total_cost:newP.total_cost,single:true,
+              img1:'',img2:'',imgs:[],obs:'',active:true,
+              barcode:newP.barcode,provTipo:''
+            });
+            await _sbFetch('POST','stock?on_conflict=product_id',{product_id:newId,qty:cantidad});
+            added++;
+          }catch(err){
+            errors++;
+            console.warn('Error guardando producto:',err);
+          }
+        }
+        
+        log.innerHTML=`<span style="color:var(--green)">✅ ${added} productos cargados</span>${errors>0?` <span style="color:var(--red)">· ${errors} errores</span>`:''}`;
+        saveAll();
+        renderAll();
+        showToast('✅ Carga masiva completada: '+added+' productos');
+        
+      }catch(err){
+        log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>';
+      }
+    };
+    reader.readAsText(file,'utf-8');
+  }catch(e){
+    log.innerHTML='<span style="color:var(--red)">Error leyendo archivo: '+e.message+'</span>';
+  }
+}
+
+// Inicializar valores de configuración al abrir
+function initConfigPage(){
+  const obj=document.getElementById('cfg-objetivo');
+  if(obj) obj.value=objetivoDiario||1000000;
+  const pct=document.getElementById('cfg-comision-pct');
+  if(pct) pct.value=parseFloat(localStorage.getItem('mv6_comision_pct'))||6;
+}
+
 </script>
 </body></html>
