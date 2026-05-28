@@ -7573,12 +7573,13 @@ async function loginUser(){
     isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
+    btn.textContent='INGRESAR';btn.disabled=false;
     updateModeUI();
     loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
   }catch(e){
     showLoginError('Error de conexión: '+e.message);
+    btn.textContent='INGRESAR';btn.disabled=false;
   }
-  btn.textContent='INGRESAR';btn.disabled=false;
 }
 async function registerUser(){
   const email=document.getElementById('loginEmail').value.trim();
