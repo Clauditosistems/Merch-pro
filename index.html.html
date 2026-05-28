@@ -7543,28 +7543,40 @@ async function loginUser(){
   const btn=document.getElementById('loginBtn');
   if(!email||!pass){showLoginError('Completá email y contraseña');return;}
   btn.textContent='Ingresando...';btn.disabled=true;
-  const{data,error}=await supa.auth.signInWithPassword({email,password:pass});
-  btn.textContent='INGRESAR';btn.disabled=false;
-  if(error){showLoginError(error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message);return;}
-  if(data.user){
-    currentUser=data.user;
-    // fetch directo para evitar problema de promesas con librería supabase
+  try{
+    // Login directo via fetch — evita problema de promesas con librería supabase
+    const authRes=await fetch(supa.supabaseUrl+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':supa.supabaseKey,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass})
+    });
+    const authData=await authRes.json();
+    if(!authRes.ok||!authData.access_token){
+      showLoginError(authData.error_description||authData.msg||'Email o contraseña incorrectos');
+      btn.textContent='INGRESAR';btn.disabled=false;
+      return;
+    }
+    // Guardar sesión en supabase client
+    await supa.auth.setSession({access_token:authData.access_token,refresh_token:authData.refresh_token});
+    currentUser=authData.user;
+    // Obtener rol
     try{
-      const r=await fetch(supa.supabaseUrl+'/rest/v1/user_roles?select=role,name&id=eq.'+currentUser.id+'&limit=1',{
-        headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+data.session.access_token}
+      const roleRes=await fetch(supa.supabaseUrl+'/rest/v1/user_roles?select=role,name&id=eq.'+currentUser.id+'&limit=1',{
+        headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+authData.access_token}
       });
-      const roleArr=await r.json();
-      const roleData=roleArr[0]||{};
-      currentUserRole=roleData.role||'vendedor';
-    }catch(e){ currentUserRole='vendedor'; }
+      const roleArr=await roleRes.json();
+      currentUserRole=(roleArr[0]?.role)||'vendedor';
+    }catch(e){currentUserRole='vendedor';}
     isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
     updateModeUI();
     loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
+  }catch(e){
+    showLoginError('Error de conexión: '+e.message);
   }
+  btn.textContent='INGRESAR';btn.disabled=false;
 }
-
 async function registerUser(){
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPassword').value;
@@ -7600,7 +7612,10 @@ async function logoutUser(){
 // ── SUPABASE FETCH HELPER ─────────────────────────────────────────
 async function _sbFetch(method, path, body){
   let token = supa.supabaseKey;
-  try{const s=await supa.auth.getSession();if(s?.data?.session?.access_token)token=s.data.session.access_token;}catch(e){}
+  try{
+    const _ls=localStorage.getItem('sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token');
+    if(_ls){const _p=JSON.parse(_ls);const _t=_p?.access_token||_p?.currentSession?.access_token;if(_t)token=_t;}
+  }catch(e){}
   const opts={method,headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'}};
   if(body)opts.body=JSON.stringify(body);
   const r=await fetch(supa.supabaseUrl+'/rest/v1/'+path,opts);
@@ -7616,8 +7631,8 @@ async function loadFromSupabase(){
   // Obtener token de sesión activa
   let token = SB_KEY;
   try{
-    const sess = await supa.auth.getSession();
-    if(sess?.data?.session?.access_token) token = sess.data.session.access_token;
+    const _ls=localStorage.getItem('sb-'+SB_URL.split('//')[1].split('.')[0]+'-auth-token');
+    if(_ls){const _p=JSON.parse(_ls);const _t=_p?.access_token||_p?.currentSession?.access_token;if(_t)token=_t;}
   }catch(e){}
   const sbFetch = async (path) => {
     const r = await fetch(SB_URL + '/rest/v1/' + path, {
@@ -14419,19 +14434,38 @@ document.addEventListener('DOMContentLoaded', async function(){
     loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
   };
 
-  // Timeout de 4 segundos — si Supabase no responde, mostrar login
-  const sessionTimeout = setTimeout(()=>{ showLogin(); }, 4000);
-
+  // Verificar sesión guardada localmente (sin llamar a Supabase)
   try{
-    const{data:{session}}=await supa.auth.getSession();
-    clearTimeout(sessionTimeout);
-    if(session){ await showApp(session); }
-    else{ showLogin(); }
-  }catch(e){
-    clearTimeout(sessionTimeout);
-    console.warn('Session check error:',e);
-    showLogin();
-  }
+    const stored = localStorage.getItem('sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token');
+    if(stored){
+      const parsed = JSON.parse(stored);
+      const token = parsed?.access_token || parsed?.currentSession?.access_token;
+      const user = parsed?.user || parsed?.currentSession?.user;
+      if(token && user){
+        // Verificar que el token no esté vencido
+        const exp = parsed?.expires_at || parsed?.currentSession?.expires_at || 0;
+        if(exp * 1000 > Date.now()){
+          currentUser = user;
+          try{
+            const roleRes=await fetch(supa.supabaseUrl+'/rest/v1/user_roles?select=role,name&id=eq.'+user.id+'&limit=1',{
+              headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token}
+            });
+            const roleArr=await roleRes.json();
+            currentUserRole=(roleArr[0]?.role)||'vendedor';
+          }catch(e){currentUserRole='vendedor';}
+          isAdminMode=(currentUserRole==='admin');
+          document.getElementById('loginScreen').style.display='none';
+          document.getElementById('mainApp').style.display='block';
+          updateModeUI();
+          renderAll();
+          loadFromSupabase().catch(e=>console.warn('loadFromSupabase error:',e));
+          return;
+        }
+      }
+    }
+  }catch(e){}
+  // No hay sesión válida → mostrar login
+  showLogin();
 });
 </script>
 </body></html>
