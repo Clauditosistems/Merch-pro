@@ -7556,8 +7556,11 @@ async function loginUser(){
       btn.textContent='INGRESAR';btn.disabled=false;
       return;
     }
-    // Guardar sesión en supabase client
-    await supa.auth.setSession({access_token:authData.access_token,refresh_token:authData.refresh_token});
+    // Guardar token en localStorage manualmente
+    try{
+      const sbKey='sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token';
+      localStorage.setItem(sbKey,JSON.stringify({access_token:authData.access_token,refresh_token:authData.refresh_token,user:authData.user,expires_at:authData.expires_at}));
+    }catch(e){}
     currentUser=authData.user;
     // Obtener rol
     try{
