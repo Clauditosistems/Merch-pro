@@ -4472,7 +4472,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.2rem">
           <span style="font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600">Ventas del día</span>
           <div style="display:flex;align-items:center;gap:.4rem">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;color:var(--text)" id="obj-ventas-txt">$446.997</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;color:var(--text)" id="obj-ventas-txt">$0</span>
             <button onclick="editarObjetivo()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:.1rem .3rem;font-size:.6rem;cursor:pointer" title="Editar meta">✏️</button>
           </div>
         </div>
@@ -4505,17 +4505,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="vt-scroll" style="max-width:620px">
       <table class="g-table">
         <thead><tr><th style="min-width:80px">Tipo</th><th style="min-width:180px">Motivo / Detalle</th><th style="min-width:80px">Prendas</th><th style="min-width:110px">Total ($)</th><th style="min-width:100px">Pago</th><th></th></tr></thead>
-        <tbody id="gastosBody"><tr style="background:rgba(155,89,182,.07)">
-      <td><span style="font-size:.68rem;padding:.15rem .35rem;border-radius:4px;font-weight:600;background:rgba(155,89,182,.2);color:var(--purple)">🛍️ Usados</span></td>
-      <td><input type="text" value="" placeholder="⚠️ Descripción obligatoria..." onchange="setGF('cu1779804671760','motivo',this.value)" style="border-color:var(--accent);background:rgba(230,57,70,.07)"></td>
-      <td><input type="number" min="1" value="1" style="width:60px" oninput="setGF('cu1779804671760','prendas',+this.value)" title="Cantidad de prendas"></td>
-      <td><input type="number" min="0" value="0" oninput="setGF('cu1779804671760','importe',+this.value)"></td>
-      <td><select onchange="setGF('cu1779804671760','pago',this.value)" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:.2rem .35rem;font-size:.73rem;font-family:'DM Sans',sans-serif">
-        <option value="efectivo" selected="">💵 Efectivo</option>
-        <option value="transferencia">💳 Transf.</option>
-      </select></td>
-      <td><button class="del-btn" onclick="removeGastoRow('cu1779804671760')">✕</button></td>
-    </tr></tbody>
+        <tbody id="gastosBody">
+    </tbody>
       </table>
     </div>
   </div>
@@ -7168,8 +7159,8 @@ const PRODUCTS_DEFAULT = [
 const _SS={"0":0,"1":0,"2":6,"3":0,"4":0,"5":0,"6":0,"7":19,"8":0,"9":0,"10":0,"11":0,"12":0,"13":12,"14":0,"15":0,"16":0,"17":14,"18":0,"19":0,"20":0,"21":0,"22":0,"23":5,"24":6,"25":9,"26":8,"27":0,"28":0,"29":0,"30":0,"31":0,"32":0,"33":0,"34":0,"35":0,"36":0,"37":0,"38":0,"39":0,"40":0,"41":0,"42":0,"43":0,"9999":0,"10000":36,"10001":4,"10002":6,"10003":0,"10004":6,"10005":6,"10006":6,"10007":4,"10008":8,"10009":5,"10010":9,"10011":0,"10012":5,"10013":4,"10014":6,"10015":8,"10016":9,"10017":2,"10018":1,"10019":2,"10020":68,"10021":33,"10026":7,"10027":6,"10028":4,"10029":4,"10030":4,"10031":3,"10032":5,"10033":3,"10034":1,"10035":4,"10036":0,"10037":3,"10038":3,"10039":8,"10040":2,"10041":5,"10042":4,"10043":3,"10044":0,"10045":0,"10046":11,"10047":10,"10048":92,"10049":61,"10050":3,"10051":29,"10052":7,"10053":6,"10054":8,"10055":17,"10056":12,"10057":12,"10058":12,"10059":12,"10060":11,"10061":12,"10062":12,"10063":4,"10064":24,"10065":12,"10066":5,"10067":6,"10068":4,"10069":7,"10070":6,"10071":9,"10072":15,"10073":5,"10074":1,"10075":8,"10076":3,"10077":8,"10078":5};
 const _SE={"0":{"date":"","obs":""},"1":{"date":"","obs":""},"2":{"date":"","obs":""},"3":{"date":"","obs":""},"7":{"date":"","obs":""},"13":{"date":"","obs":""},"17":{"date":"","obs":""},"23":{"date":"","obs":""},"24":{"date":"","obs":""},"25":{"date":"","obs":""},"26":{"date":"","obs":""},"10000":{"date":"","obs":""},"10001":{"date":"","obs":""},"10002":{"date":"","obs":""},"10004":{"date":"","obs":""},"10005":{"date":"","obs":""},"10006":{"date":"","obs":""},"10007":{"date":"","obs":""},"10008":{"date":"","obs":""},"10009":{"date":"","obs":""},"10010":{"date":"","obs":""},"10012":{"date":"","obs":""},"10013":{"date":"","obs":""},"10014":{"date":"","obs":""},"10015":{"date":"","obs":""},"10016":{"date":"","obs":""},"10017":{"date":"","obs":""},"10018":{"date":"","obs":""},"10019":{"date":"","obs":""},"10020":{"date":"","obs":""},"10021":{"date":"","obs":""},"10026":{"date":"","obs":""},"10027":{"date":"","obs":""},"10028":{"date":"","obs":""},"10029":{"date":"","obs":""},"10030":{"date":"","obs":""},"10031":{"date":"","obs":""},"10032":{"date":"","obs":""},"10033":{"date":"","obs":""},"10034":{"date":"","obs":""},"10035":{"date":"","obs":""},"10037":{"date":"","obs":""},"10038":{"date":"","obs":""},"10039":{"date":"","obs":""},"10040":{"date":"","obs":""},"10041":{"date":"","obs":""},"10042":{"date":"","obs":""},"10043":{"date":"","obs":""},"10044":{"date":"","obs":""},"10045":{"date":"","obs":""},"10046":{"date":"","obs":""},"10047":{"date":"","obs":""},"10048":{"date":"","obs":""},"10049":{"date":"","obs":""},"10050":{"date":"","obs":""},"10051":{"date":"","obs":""},"10052":{"date":"","obs":""},"10053":{"date":"","obs":""},"10054":{"date":"","obs":""},"10055":{"date":"","obs":""},"10056":{"date":"","obs":""},"10057":{"date":"","obs":""},"10058":{"date":"","obs":""},"10059":{"date":"","obs":""},"10060":{"date":"","obs":""},"10061":{"date":"","obs":""},"10062":{"date":"","obs":""},"10063":{"date":"","obs":""},"10064":{"date":"","obs":""},"10065":{"date":"","obs":""},"10066":{"date":"","obs":""},"10067":{"date":"","obs":""},"10068":{"date":"","obs":""},"10069":{"date":"","obs":""},"10070":{"date":"","obs":""},"10071":{"date":"","obs":""},"10072":{"date":"","obs":""},"10073":{"date":"","obs":""},"10074":{"date":"","obs":""},"10075":{"date":"","obs":""},"10076":{"date":"","obs":""},"10077":{"date":"","obs":""},"10078":{"date":"","obs":""}};
 const _SH=[{"id":10001,"productId":25,"productTitle":"Jean Recto Clásico Zaira","date":"2026-04-30","qty":10,"cost":14000,"sale1":25000,"sale2":45000,"note":"Factura Zaira 30/04/26","pago":"efectivo"},{"id":10002,"productId":26,"productTitle":"Jean Wide Leg Semielastizado Zaira","date":"2026-04-30","qty":9,"cost":19500,"sale1":35000,"sale2":65000,"note":"Factura Zaira 30/04/26 - Total $315.500","pago":"efectivo"},{"id":10003,"productId":27,"productTitle":"Remera ML Acanalada Rassel","date":"2026-04-30","qty":12,"cost":3000,"sale1":8000,"sale2":15000,"note":"Factura Bianca - Total $184.000","pago":"efectivo"},{"id":10004,"productId":28,"productTitle":"Remera ML Camisa Soft","date":"2026-04-30","qty":12,"cost":3000,"sale1":8000,"sale2":15000,"note":"Factura Bianca","pago":"efectivo"},{"id":10005,"productId":29,"productTitle":"Conjunto Gamuza","date":"2026-04-30","qty":8,"cost":14000,"sale1":25000,"sale2":45000,"note":"Factura Bianca - 8 conjuntos","pago":"efectivo"},{"id":10006,"productId":30,"productTitle":"Sweater Plus Crew","date":"2026-04-30","qty":8,"cost":9000,"sale1":20000,"sale2":35000,"note":"Factura EGO - Total $268.000","pago":"efectivo"},{"id":10007,"productId":31,"productTitle":"Sweater Waffle","date":"2026-04-30","qty":4,"cost":9000,"sale1":20000,"sale2":35000,"note":"Factura EGO","pago":"efectivo"},{"id":10008,"productId":32,"productTitle":"Chomba Polo Plisada","date":"2026-04-30","qty":10,"cost":16000,"sale1":30000,"sale2":55000,"note":"Factura EGO - 10 chombas","pago":"efectivo"},{"id":10009,"productId":33,"productTitle":"Pantalón Recto Soft Hombre","date":"2026-04-30","qty":7,"cost":9500,"sale1":18000,"sale2":32000,"note":"Factura Sport JAF - $66.500","pago":"efectivo"},{"id":10010,"productId":23,"productTitle":"Jean Baggy Lucky","date":"2026-04-30","qty":9,"cost":12000,"sale1":21500,"sale2":40000,"note":"Catálogo MOJO - Lucky $21.500","pago":"efectivo"},{"id":10011,"productId":24,"productTitle":"Jean Wide Oliver","date":"2026-04-30","qty":10,"cost":11000,"sale1":20000,"sale2":38000,"note":"Catálogo MOJO - Oliver $20.000","pago":"efectivo"},{"id":10012,"productId":34,"productTitle":"Jogging Baggy Pei","date":"2026-04-30","qty":5,"cost":17000,"sale1":30000,"sale2":55000,"note":"Impacto Dist42 - Factura #23005","pago":"efectivo"},{"id":10013,"productId":35,"productTitle":"Remera Over Básica Azul Marino","date":"2026-04-30","qty":10,"cost":8500,"sale1":15000,"sale2":25000,"note":"Impacto Dist42 - Factura #23005","pago":"efectivo"},{"id":20001,"productId":36,"productTitle":"Remera ML Escote Fruncida Luz","date":"2026-04-30","qty":6,"cost":3500,"sale1":8000,"sale2":15000,"note":"Factura Black Olive #127377 - Total $70.000","pago":"efectivo"},{"id":20002,"productId":37,"productTitle":"Remera Basica ML","date":"2026-04-30","qty":14,"cost":3500,"sale1":8000,"sale2":15000,"note":"Factura Black Olive #127377 - Total $70.000","pago":"efectivo"},{"id":20003,"productId":38,"productTitle":"Remera ML Escote Puntilla Josefa","date":"2026-04-30","qty":12,"cost":4500,"sale1":10000,"sale2":18000,"note":"Factura LULU - Total $108.000","pago":"efectivo"},{"id":20004,"productId":39,"productTitle":"Remera ML Escote Superpuesto Luz","date":"2026-04-30","qty":12,"cost":4500,"sale1":10000,"sale2":18000,"note":"Factura LULU - Total $108.000","pago":"efectivo"},{"id":20005,"productId":40,"productTitle":"Buzo Canguro Hampton Every Good Day","date":"2026-04-30","qty":6,"cost":19000,"sale1":38000,"sale2":70000,"note":"Factura JELLY #41615 - Total $249.000","pago":"efectivo"},{"id":20006,"productId":41,"productTitle":"Buzo Saint Louis Medio Cierre","date":"2026-04-30","qty":6,"cost":17500,"sale1":35000,"sale2":65000,"note":"Factura JELLY #41615 - Total $249.000","pago":"efectivo"},{"id":20007,"productId":42,"productTitle":"Buzo Canguro Never Not Loving","date":"2026-04-30","qty":1,"cost":15000,"sale1":30000,"sale2":55000,"note":"Factura JELLY #41615","pago":"efectivo"},{"id":20008,"productId":43,"productTitle":"Buzo Canguro Goodfornothing","date":"2026-04-30","qty":1,"cost":15000,"sale1":30000,"sale2":55000,"note":"Factura JELLY #41615","pago":"efectivo"},{"id":1779744960007,"productId":10051,"productTitle":"REMERA CROP ESTAMPADA","date":"2026-05-25","qty":29,"cost":2000,"sale1":10000,"sale2":20000,"note":"Alta inicial"},{"id":1779745255766,"productId":10052,"productTitle":"Buzo athletic season JELLY","date":"2026-05-25","qty":7,"cost":18000,"sale1":40000,"sale2":0,"note":"Alta inicial"},{"id":1779745416961,"productId":10053,"productTitle":"Buzo break the rules JELLY","date":"2026-05-25","qty":6,"cost":19500,"sale1":40000,"sale2":0,"note":"Alta inicial"},{"id":1779745537088,"productId":10054,"productTitle":"Buzo raya blanca LUNAMIA","date":"2026-05-25","qty":8,"cost":8000,"sale1":20000,"sale2":40000,"note":"Alta inicial"},{"id":1779745655343,"productId":10055,"productTitle":"Calza termica","date":"2026-05-25","qty":18,"cost":5500,"sale1":15000,"sale2":25000,"note":"Alta inicial"},{"id":1779745742269,"productId":10056,"productTitle":"Campera 2 en 1 caracas","date":"2026-05-25","qty":12,"cost":35500,"sale1":70000,"sale2":0,"note":"Alta inicial"},{"id":1779745867632,"productId":10057,"productTitle":"Campera Antilluvia caracas","date":"2026-05-25","qty":12,"cost":21300,"sale1":50000,"sale2":0,"note":"Alta inicial"},{"id":1779745914487,"productId":10058,"productTitle":"Campera Deportiva caracas","date":"2026-05-25","qty":12,"cost":11550,"sale1":25000,"sale2":0,"note":"Alta inicial"},{"id":1779745977623,"productId":10059,"productTitle":"Campera Neopren con peluchito caracas","date":"2026-05-25","qty":12,"cost":31000,"sale1":65000,"sale2":0,"note":"Alta inicial"},{"id":1779746018806,"productId":10060,"productTitle":"Campera Neopren con polar caracas","date":"2026-05-25","qty":12,"cost":27500,"sale1":60000,"sale2":0,"note":"Alta inicial"},{"id":1779746063788,"productId":10061,"productTitle":"Campera puffer hombre caracas","date":"2026-05-25","qty":12,"cost":21000,"sale1":50000,"sale2":0,"note":"Alta inicial"},{"id":1779746086733,"productId":10062,"productTitle":"Campera puffer mujer caracas","date":"2026-05-25","qty":12,"cost":21000,"sale1":50000,"sale2":0,"note":"Alta inicial"},{"id":1779746118332,"productId":10063,"productTitle":"Campera puffer Saphir","date":"2026-05-25","qty":4,"cost":30000,"sale1":70000,"sale2":0,"note":"Alta inicial"},{"id":1779746166252,"productId":10064,"productTitle":"Chaleco caracas","date":"2026-05-25","qty":24,"cost":18500,"sale1":40000,"sale2":0,"note":"Alta inicial"},{"id":1779746207840,"productId":10065,"productTitle":"Chomba caracas","date":"2026-05-25","qty":12,"cost":11500,"sale1":25000,"sale2":0,"note":"Alta inicial"},{"id":1779746296043,"productId":10066,"productTitle":"Campera Not You JELLY","date":"2026-05-25","qty":6,"cost":21000,"sale1":40000,"sale2":0,"note":"Alta inicial"},{"id":1779746299720,"productId":10067,"productTitle":"Campera Not You JELLY","date":"2026-05-25","qty":6,"cost":21000,"sale1":40000,"sale2":0,"note":"Alta inicial"},{"id":1779748065677,"productId":10068,"productTitle":"Jeans Oxido Dalerey","date":"2026-05-25","qty":4,"cost":18000,"sale1":45000,"sale2":0,"note":"Alta inicial"},{"id":1779748176149,"productId":10069,"productTitle":"Polera termica","date":"2026-05-25","qty":7,"cost":6000,"sale1":15000,"sale2":25000,"note":"Alta inicial"},{"id":1779748323605,"productId":10070,"productTitle":"Remera basica IMPACTO","date":"2026-05-25","qty":8,"cost":9000,"sale1":20000,"sale2":0,"note":"Alta inicial"},{"id":1779748384440,"productId":10071,"productTitle":"remera mujer escote cuadrado con puntilla","date":"2026-05-25","qty":9,"cost":4500,"sale1":10000,"sale2":20000,"note":"Alta inicial"},{"id":1779748424160,"productId":10072,"productTitle":"remera mujer escote cuadrado","date":"2026-05-25","qty":15,"cost":4500,"sale1":10000,"sale2":20000,"note":"Alta inicial"},{"id":1779748508437,"productId":10073,"productTitle":"Remera termica mujer bianca","date":"2026-05-25","qty":8,"cost":4000,"sale1":15000,"sale2":25000,"note":"Alta inicial"},{"id":1779748542725,"productId":10074,"productTitle":"Remera termica polera briza","date":"2026-05-25","qty":1,"cost":5500,"sale1":15000,"sale2":25000,"note":"Alta inicial"},{"id":1779748740313,"productId":10075,"productTitle":"Sweater darlon Urban","date":"2026-05-25","qty":11,"cost":9500,"sale1":25000,"sale2":40000,"note":"Alta inicial"},{"id":1779748875942,"productId":10076,"productTitle":"Sweater darlon Originals","date":"2026-05-25","qty":3,"cost":10000,"sale1":25000,"sale2":40000,"note":"Alta inicial"},{"id":1779749056239,"productId":10077,"productTitle":"Sweater plush EGO","date":"2026-05-25","qty":8,"cost":10000,"sale1":25000,"sale2":40000,"note":"Alta inicial"},{"id":1779749184891,"productId":10078,"productTitle":"Remera basica ANNEL","date":"2026-05-25","qty":12,"cost":8000,"sale1":20000,"sale2":0,"note":"Alta inicial"}];
-const _SV=[{"id":"j1778725862558","fecha":"2026-05-13","vendedor":"Sin especificar","obsDia":"","anulada":false,"editLog":[],"ccInicio":30000,"efecReal":0,"ccFinal":30000,"efecEsperado":62000,"diff":-62000,"ventas":[{"rid":"tk1778725229673","cliente":"Cliente","vendedor":"Sin especificar","medio":"efectivo","obs":"","descPesos":0,"descType":"pct","descVal":0,"subtotal":55000,"total":55000,"prendas":2,"vintage":0,"items":[{"rid":"ci17787249308900m2","productId":8,"qty":1,"price":25000,"obs":"","isVintage":false,"discPct":0,"productTitle":"Pantalón de Punto","productCost":8500,"discAmt":0,"subtotal":25000},{"rid":"ci1778725048760vz5","productId":10,"qty":1,"price":30000,"obs":"","isVintage":false,"productTitle":"Pantalón Oxford / Campana","productCost":0,"discAmt":0,"subtotal":30000}]},{"rid":"tk1778725266238","cliente":"Cliente","vendedor":"Sin especificar","medio":"transferencia","obs":"","descPesos":0,"descType":"pct","descVal":0,"subtotal":25000,"total":25000,"prendas":1,"vintage":0,"items":[{"rid":"ci1778725262643ie1","productId":44,"qty":1,"price":25000,"obs":"","isVintage":false,"productTitle":"PRUEBA DE SISTEMA SALADA","productCost":10000,"discAmt":0,"subtotal":25000}]},{"rid":"tk1778725445435","cliente":"Cliente","vendedor":"Sin especificar","medio":"efectivo","obs":"","descPesos":2000,"descType":"pct","descVal":10,"subtotal":20000,"total":18000,"prendas":2,"vintage":0,"items":[{"rid":"ci177872543366612r","productId":38,"qty":2,"price":10000,"obs":"","isVintage":false,"productTitle":"Remera ML Escote Puntilla (Josefa)","productCost":4500,"discAmt":0,"subtotal":20000}]},{"rid":"tk1778725457493","cliente":"Cliente","vendedor":"Sin especificar","medio":"efectivo","obs":"","descPesos":1000,"descType":"pct","descVal":0,"subtotal":20000,"total":19000,"prendas":2,"vintage":0,"items":[{"rid":"ci17787254494525p7","productId":38,"qty":1,"price":10000,"obs":"","isVintage":false,"productTitle":"Remera ML Escote Puntilla (Josefa)","productCost":4500,"discAmt":0,"subtotal":10000},{"rid":"ci1778725451357cjc","productId":39,"qty":1,"price":10000,"obs":"","isVintage":false,"discPct":10,"productTitle":"Remera ML Escote Superpuesto Luz","productCost":4500,"discAmt":1000,"subtotal":9000}]}],"gastos":[{"rid":"gr1778725303386","tipo":"gasto","motivo":"facturas desayuno","importe":10000,"pago":"efectivo","prendas":0},{"rid":"cu1778725323459","tipo":"compra_usados","motivo":"le compre a adriana","importe":20000,"pago":"efectivo","prendas":7}],"totalEfec":92000,"totalTransf":25000,"totalVentas":117000,"totalGastos":30000,"ganancia":83500,"gananciaReal":42540,"margenGanancia":36,"totalPrendas":7,"totalVintage":0,"totalDesc":3000,"comisiones":6960,"costoTransferencias":1000,"cmv":36500,"aplicaComision":true,"pctEfectivo":79,"margenPromedio":64,"conversion":40,"clientesHoy":10,"tickets":4}];
-const _SC=[{"jornadaId":"j1778725862558","fecha":"2026-05-13","vendedor":"Sin especificar","totalVentas":117000,"totEfec":92000,"totTransf":25000,"totalGastos":30000,"comisiones":6960,"costoTransferencias":1000,"cmv":36500,"totalDesc":3000,"clientesHoy":10,"tickets":4,"prendas":7,"pctEfectivo":79,"margenPromedio":64,"margenGanancia":36,"conversion":40,"gananciaReal":42540,"diff":-62000}];
+const _SV=[]
+const _SC=[]
 const _SPROV=[{"nombre":"CARACAS","tipo":"Oportunidades","dir":"Caracas 2356","tel":"11-7826-4056","ig":"","notas":"","ctacte":false,"id":"prov1779144203999","saldo":0,"movimientos":[]},{"nombre":"Creaciones SJ","tipo":"Salada","dir":"Pasillo 9 Puesto 8B Fila 18","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779145935493","saldo":0,"movimientos":[]},{"nombre":"Creaciones ELY","tipo":"Salada","dir":"Pasillo 9 Puesto 54 Fila 16","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779146236879","saldo":0,"movimientos":[]},{"nombre":"Creaciones Loli","tipo":"Salada","dir":"Pasillo 8 Puesto 41 Fila 16","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779146325234","saldo":0,"movimientos":[]},{"nombre":"DESCONOCIDO","tipo":"Salada","dir":"Pasillo 7 Fila 6","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779150201623","saldo":0,"movimientos":[]},{"nombre":"CREACIONES BRIZA","tipo":"Salada","dir":"Local 12 sobre Arana Goiri","tel":"11-2515-5088","ig":"","notas":"","ctacte":false,"id":"prov1779150610471","saldo":0,"movimientos":[]},{"nombre":"Creaciones Washington","tipo":"Salada","dir":"Pasillo 9 Puesto 54 Fila 18","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779150663916","saldo":0,"movimientos":[]},{"nombre":"Indumentaria Brenda","tipo":"Salada","dir":"Pasillo 9 Puesto 55 Fila 18","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779150758609","saldo":0,"movimientos":[]},{"nombre":"MOJO","tipo":"Flores","dir":"Campana 465","tel":"11-3100-6270","ig":"","notas":"","ctacte":false,"id":"prov1779151096152","saldo":0,"movimientos":[]},{"nombre":"Zaira","tipo":"Flores","dir":"Concordia 368 / Bogotá 3299","tel":"11-3387-2227","ig":"","notas":"","ctacte":false,"id":"prov1779151264973","saldo":0,"movimientos":[]},{"nombre":"Fardos Caracas","tipo":"Fardos","dir":"Caracas 2171","tel":"","ig":"","notas":"","ctacte":true,"id":"prov1779230635603","saldo":0,"movimientos":[]},{"nombre":"JELLY","tipo":"Flores","dir":"Aranguren 3377","tel":"1126565646","ig":"","notas":"","ctacte":false,"id":"prov1779232333334","saldo":0,"movimientos":[]},{"nombre":"Gaby Modas","tipo":"Flores","dir":"Bacacay 3161","tel":"11-2528-5863","ig":"","notas":"","ctacte":false,"id":"prov1779232804423","saldo":0,"movimientos":[]},{"nombre":"NAYARA","tipo":"Salada","dir":"Pasillo 8 - Puesto 28 - Fila 16","tel":"11-2801-0856","ig":"","notas":"","ctacte":false,"id":"prov1779233821521","saldo":0,"movimientos":[]},{"nombre":"Urban Line","tipo":"Salada","dir":"Pasillo 8 - Puesto 23 - Fila 16","tel":"11-6478-7836","ig":"","notas":"El numero puesto es para pedidos, el catalogo esta en 11-2470-5021","ctacte":false,"id":"prov1779234064796","saldo":0,"movimientos":[]},{"nombre":"WARMI","tipo":"Salada","dir":"Pasillo 9 - Puesto 38- Fila 16","tel":"11-6485-8090","ig":"@warmi.yr","notas":"Tienen local en flores en Bacacay 3231, local 18-20","ctacte":false,"id":"prov1779234523692","saldo":0,"movimientos":[]},{"nombre":"Bogota 3128 Galeria","tipo":"Flores","dir":"Bogota 3128","tel":"11-6368-1490","ig":"","notas":"No se el nombre, compre con facu en una galeria buzos de mujer bordados","ctacte":false,"id":"prov1779235079636","saldo":0,"movimientos":[]},{"nombre":"MIGZAR","tipo":"Salada","dir":"Pasillo 5 - Puesto 28 - Fila 9","tel":"11-5304-0278","ig":"","notas":"","ctacte":false,"id":"prov1779235557286","saldo":0,"movimientos":[]},{"nombre":"BIANCA","tipo":"Flores","dir":"Bacacay 3421","tel":"11-6265-5316","ig":"","notas":"","ctacte":false,"id":"prov1779235860422","saldo":0,"movimientos":[]},{"nombre":"EGO","tipo":"Flores","dir":"Bacacay 3248","tel":"11-2894-4070","ig":"","notas":"","ctacte":false,"id":"prov1779235963003","saldo":0,"movimientos":[]},{"nombre":"Danielle","tipo":"Salada","dir":"Pasillo 11 - Puesto 38 - Fila 22","tel":"11-5467-6201","ig":"","notas":"","ctacte":false,"id":"prov1779236183516","saldo":0,"movimientos":[]},{"nombre":"DALEREY JEANS","tipo":"Flores","dir":"Bogota 3365","tel":"11-3910-3410","ig":"","notas":"","ctacte":false,"id":"prov1779236261587","saldo":0,"movimientos":[]},{"nombre":"IMPACTO","tipo":"Flores","dir":"Bogota 3055","tel":"11-6094-6239","ig":"@impacto.indd","notas":"Tienen otro local en bogota al 3119","ctacte":false,"id":"prov1779237094900","saldo":0,"movimientos":[]},{"nombre":"Sport Jaf","tipo":"Flores","dir":"Cuenca 176","tel":"11-3870-7798","ig":"","notas":"","ctacte":false,"id":"prov1779237200429","saldo":0,"movimientos":[]},{"nombre":"Angel Creaciones","tipo":"Salada","dir":"Pasillo 7 - Puesto 60 - Fila 14","tel":"11-3021-3549","ig":"","notas":"Tienen otro en Pasillo 8 - Puesto 31 - Fila 15","ctacte":false,"id":"prov1779315423018","saldo":0,"movimientos":[]},{"nombre":"Pantalones Unisex, no se nombre","tipo":"Salada","dir":"Pasillo 10 - Puesto 54 - Fila 19","tel":"11-3611-4158","ig":"","notas":"","ctacte":false,"id":"prov1779421897992","saldo":0,"movimientos":[]},{"nombre":"Modas MYG","tipo":"Salada","dir":"Atlantida pasillo 3 - puesto 417 (cerca del baño)","tel":"11-4092-5025","ig":"","notas":"","ctacte":false,"id":"prov1779422117951","saldo":0,"movimientos":[]},{"nombre":"La Salada Urkupiña","tipo":"Salada","dir":"Pasillo 7 Fila 6","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856145","saldo":0,"movimientos":[]},{"nombre":"Collmenha","tipo":"Salada","dir":"Pasillo 10 Puesto 50 Fila 20","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856706","saldo":0,"movimientos":[]},{"nombre":"Urkupiña","tipo":"Salada","dir":"Pasillo 10 Puesto 50 Fila 20","tel":"","ig":"","notas":"","ctacte":false,"id":"prov177972839685689","saldo":0,"movimientos":[]},{"nombre":"UBLAN.LINE","tipo":"Salada","dir":"Pasillo 8 Puesto 23 Fila 16","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856576","saldo":0,"movimientos":[]},{"nombre":"NV Fashion Model Beauty Woman","tipo":"Salada","dir":"P.4 Puesto 10","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856184","saldo":0,"movimientos":[]},{"nombre":"Feria Urkupiña","tipo":"Salada","dir":"Pasillo 10 Puesto 54 Fila 19","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856171","saldo":0,"movimientos":[]},{"nombre":"D'Anielle","tipo":"Salada","dir":"Pasillo 11 Puesto 38 Fila 22","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856707","saldo":0,"movimientos":[]},{"nombre":"Kael Majo","tipo":"Salada","dir":"Pasillo 6 Puesto 48 Fila 11","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856877","saldo":0,"movimientos":[]},{"nombre":"KM Karina Modas","tipo":"Salada","dir":"Pasillo 5 Fila 9 Puesto 14","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856346","saldo":0,"movimientos":[]},{"nombre":"ANNEL","tipo":"Salada","dir":"Pasillo 5 Puesto 18B Fila 10","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856635","saldo":0,"movimientos":[]},{"nombre":"MOJO Catalogo","tipo":"Salada","dir":"Lucky","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856973","saldo":0,"movimientos":[]},{"nombre":"Creaciones Bianca","tipo":"Salada","dir":"Galería Ecomoda Local 1","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856889","saldo":0,"movimientos":[]},{"nombre":"EGO Limited Fashion","tipo":"Salada","dir":"Bacacay 3248 Paseo Galaxy","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856360","saldo":0,"movimientos":[]},{"nombre":"Impacto Distrito 42","tipo":"Salada","dir":"Bogotá 3055","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856173","saldo":0,"movimientos":[]},{"nombre":"Black Olive","tipo":"Salada","dir":"Av. Avellaneda 3237 CABA","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856815","saldo":0,"movimientos":[]},{"nombre":"LULU","tipo":"Salada","dir":"Black Olive","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779728396856772","saldo":0,"movimientos":[]},{"nombre":"Caracas 2356","tipo":"Salada","dir":"","tel":"","ig":"","notas":"","ctacte":false,"id":"prov177972839685620","saldo":0,"movimientos":[]},{"nombre":"REMERA BARATA ESTAMPADA","tipo":"Salada","dir":"PASILLO 1","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779744902501","saldo":0,"movimientos":[]},{"nombre":"LUNAMIA","tipo":"Flores","dir":"","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779745451955","saldo":0,"movimientos":[]},{"nombre":"SAPHIR","tipo":"Flores","dir":"","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779746101832","saldo":0,"movimientos":[]},{"nombre":"DOMO","tipo":"Flores","dir":"","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779748344837","saldo":0,"movimientos":[]},{"nombre":"CREACIONES MUCAQUI","tipo":"Salada","dir":"","tel":"","ig":"","notas":"","ctacte":false,"id":"prov1779748824881","saldo":0,"movimientos":[]},{"nombre":"ANNEL","tipo":"Salada","dir":"PASILLO 5 - PUESTO 18B - FILA 10","tel":"11-2468-8466","ig":"","notas":"","ctacte":false,"id":"prov1779749145938","saldo":0,"movimientos":[]}];
 const _SCIV={"movimientos":[],"saldoInicial":0};
 const _SADJ=[{"id":"aj1778684634198","date":"2026-05-13","time":"13/5/2026, 12:03:54","motivo":"Otro","by":"Admin","items":[{"productId":44,"productTitle":"PRUEBA DE SISTEMA SALADA","oldStock":5,"newStock":8,"diff":3,"cost":"$10.000"},{"productId":45,"productTitle":"PRUEBA SISTEMA FLORES","oldStock":5,"newStock":3,"diff":-2,"cost":"$5.000"}],"totalFaltantes":2,"totalSobrantes":3,"valorImpacto":20000},{"id":"aj1778685070176","date":"2026-05-13","time":"13/5/2026, 12:11:10","motivo":"Error de carga","by":"Admin","items":[{"productId":46,"productTitle":"PRUEBA DE FLORES","oldStock":9,"newStock":8,"diff":-1,"cost":"$15.000"}],"totalFaltantes":1,"totalSobrantes":0,"valorImpacto":-15000},{"id":"aj1779505810029","date":"2026-05-23","time":"23/5/2026, 12:10:10","motivo":"Sin especificar","by":"Admin","items":[{"productId":0,"productTitle":"Jogging Hombre Babucha","oldStock":2,"newStock":0,"diff":-2,"cost":"$10.500"},{"productId":1,"productTitle":"Jogging darlon mujer barato","oldStock":1,"newStock":0,"diff":-1,"cost":"$6.500"},{"productId":2,"productTitle":"Remera termica CREATIVE","oldStock":2,"newStock":0,"diff":-2,"cost":"$6.000"},{"productId":3,"productTitle":"Pantalón darlon mujer con Banda Lateral","oldStock":1,"newStock":0,"diff":-1,"cost":"$8.000"},{"productId":7,"productTitle":"Remera basica de Adulto","oldStock":19,"newStock":0,"diff":-19,"cost":"$4.500"},{"productId":13,"productTitle":"Remera Térmica","oldStock":20,"newStock":0,"diff":-20,"cost":"$6.000"},{"productId":17,"productTitle":"Camperita de mujer con Cierre tipo adidas","oldStock":1,"newStock":0,"diff":-1,"cost":"$6.500"},{"productId":23,"productTitle":"Jean Baggy Lucky","oldStock":9,"newStock":0,"diff":-9,"cost":"$21.500"},{"productId":24,"productTitle":"Jean Wide Oliver","oldStock":10,"newStock":0,"diff":-10,"cost":"$21.000"},{"productId":25,"productTitle":"Jean Recto Clásico Zaira","oldStock":10,"newStock":0,"diff":-10,"cost":"$14.000"},{"productId":26,"productTitle":"Jean Negro Wide Leg Semielastizado Zaira","oldStock":9,"newStock":0,"diff":-9,"cost":"$19.500"}],"totalFaltantes":84,"totalSobrantes":0,"valorImpacto":-978500},{"id":"aj1779664609080","date":"2026-05-24","time":"24/5/2026, 08:16:49","motivo":"Sin especificar","by":"Admin","items":[{"productId":0,"productTitle":"Jogging Hombre Babucha","oldStock":0,"newStock":10,"diff":10,"cost":"$10.500"}],"totalFaltantes":0,"totalSobrantes":10,"valorImpacto":105000},{"id":"aj1779725979803","date":"2026-05-25","time":"25/5/2026, 01:19:39","motivo":"Sin especificar","by":"Admin","items":[{"productId":10001,"productTitle":"Body Reductor CARACAS","oldStock":0,"newStock":4,"diff":4,"cost":"$5.000"}],"totalFaltantes":0,"totalSobrantes":4,"valorImpacto":20000}];
@@ -7359,8 +7350,8 @@ async function _refreshTokenIfNeeded(){
     if(!_ls)return;
     const _p=JSON.parse(_ls);
     const exp=_p?.expires_at||0;
-    // Si vence en menos de 5 minutos, refrescar
-    if(exp*1000 - Date.now() < 300000){
+    // Refrescar si vence en menos de 30 minutos
+    if(exp*1000 - Date.now() < 1800000){
       const refreshToken=_p?.refresh_token;
       if(!refreshToken)return;
       const r=await fetch(supa.supabaseUrl+'/auth/v1/token?grant_type=refresh_token',{
@@ -7527,8 +7518,37 @@ async function loadFromSupabase(){
     const adjData = await sbFetch('stock_adjustments?select=*&order=created_at.desc');
     if(adjData&&adjData.length>0) window.stockAdjustments=adjData;
 
+    // Load caja ivo
+    try{
+      const cajaIvoData=await sbFetch('caja_ivo?select=*&limit=1');
+      if(cajaIvoData&&cajaIvoData[0]){
+        cajaIvoMovimientos=cajaIvoData[0].movimientos||[];
+        cajaIvoSaldoInicial=cajaIvoData[0].saldo_inicial||0;
+        localStorage.setItem('mv6_cajaivo',JSON.stringify({movimientos:cajaIvoMovimientos,saldoInicial:cajaIvoSaldoInicial}));
+      }
+    }catch(e){}
+
+    // Load costos fijos
+    try{
+      const costosFijosData=await sbFetch('costos_fijos?select=*&limit=1');
+      if(costosFijosData&&costosFijosData[0]){
+        costosFijos=costosFijosData[0].items||[];
+        localStorage.setItem('mv6_costos_fijos',JSON.stringify(costosFijos));
+      }
+    }catch(e){}
+
+    // Load configuracion (objetivo, obligaciones)
+    try{
+      const cfgData=await sbFetch('configuracion?select=*&limit=1');
+      if(cfgData&&cfgData[0]){
+        if(cfgData[0].objetivo) objetivoDiario=cfgData[0].objetivo;
+        if(cfgData[0].obligaciones) obligacionesMes=cfgData[0].obligaciones;
+      }
+    }catch(e){}
+
     showToast('✅ Datos cargados');
     renderAll();
+    restorePendingJornada();
   }catch(err){
     console.error('Error loading from Supabase:',err);
     showToast('❌ Error cargando datos: '+err.message);
@@ -8239,6 +8259,7 @@ function confirmarVenta(){
   ventaRows.push(ticket);
   recalcVentas();renderTicketsDelDia();updateObjetivo();updateDashboardExtra();cerrarCarrito();
   showToast(`✅ Venta de ${cliente} — ${fmtM(total)}`);
+  autoSavePendingJornada();
 }
 function quickAddVenta(pid){
   const p=products.find(x=>x.id===pid);
@@ -8525,6 +8546,7 @@ function confirmarGuardar(){
 }
 
 function limpiarJornada(){
+  try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
   ventaRows=[];gastoRows=[];
   renderTicketsDelDia();renderGastosTable();
   const setV=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
@@ -11087,6 +11109,13 @@ function saveCajaIvo(){
       saldoInicial:cajaIvoSaldoInicial
     }));
   }catch(e){}
+  // Sync a Supabase
+  _sbFetch('POST','caja_ivo?on_conflict=id',[{
+    id:1,
+    movimientos:cajaIvoMovimientos||[],
+    saldo_inicial:cajaIvoSaldoInicial||0,
+    updated_at:new Date().toISOString()
+  }]).catch(e=>console.warn('CajaIvo sync error:',e.message));
 }
 
 function getCajaIvoSaldo(){
@@ -12034,6 +12063,7 @@ function editarObjetivo(){
   if(isNaN(n)||n<=0){showToast('❌ Valor inválido');return;}
   objetivoDiario=n;
   localStorage.setItem('mv6_objetivo',n);
+  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',objetivo:n,updated_at:new Date().toISOString()}]).catch(()=>{});
   updateObjetivo();
   showToast('✅ Objetivo actualizado: '+fmtM(n));
 }
@@ -14240,7 +14270,7 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
         <h3 style="margin-bottom:.4rem;font-size:1rem">📊 Carga masiva de productos desde Excel</h3>
         <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem">El archivo Excel debe tener columnas: <strong>titulo, costo, cantidad, rubro, precio_venta, precio_oferta, proveedor</strong></p>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
-          <input type="file" id="cfg-excel-file" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem">
+          <input type="file" id="cfg-excel-file" accept=".csv,.xlsx,.xls" style="flex:1;min-width:200px;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem">
           <button class="nbtn green" onclick="cargarDesdeExcel()">📥 Cargar productos</button>
         </div>
         <div id="cfg-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"></div>
@@ -14339,6 +14369,9 @@ document.addEventListener('DOMContentLoaded', async function(){
   showLogin();
 });
 
+// Auto-refresh token cada 20 minutos para evitar JWT expired
+setInterval(()=>{ _refreshTokenIfNeeded().catch(()=>{}); }, 1200000);
+
 // ── LIMPIAR JORNADAS VIEJAS (ejecutar una vez) ────────────────────
 async function limpiarJornadasViejas(){
   if(!confirm('¿Borrar TODAS las jornadas y caja de Supabase? Esto no se puede deshacer.')) return;
@@ -14374,104 +14407,132 @@ async function cargarDesdeExcel(){
   const file=document.getElementById('cfg-excel-file')?.files[0];
   if(!file){showToast('❌ Seleccioná un archivo');return;}
   const log=document.getElementById('cfg-excel-log');
-  const preview=document.getElementById('cfg-excel-preview');
   log.innerHTML='<span style="color:var(--accent)">Procesando...</span>';
-  
-  try{
-    const reader=new FileReader();
+  const isXlsx=file.name.endsWith('.xlsx')||file.name.endsWith('.xls');
+
+  const processRows = async (rows) => {
+    let added=0,errors=0;
+    for(const row of rows){
+      const titulo=row.titulo||row.title||row.nombre||row.producto||'';
+      const costo=parseFloat(String(row.costo||row.cost||'0').replace(/[.$,]/g,''))||0;
+      const cantidad=parseInt(row.cantidad||row.qty||row.stock||'0')||0;
+      const rubro=row.rubro||row.tag||row.categoria||'General';
+      const precio=parseFloat(String(row.precio_venta||row.precio||row.sale1||'0').replace(/[.$,]/g,''))||0;
+      const oferta=parseFloat(String(row.precio_oferta||row.sale2||'0').replace(/[.$,]/g,''))||0;
+      const proveedor=row.proveedor||row.supplier||'';
+      if(!titulo){errors++;continue;}
+      const newId=nextId++;
+      const newP={id:newId,tag:rubro,title:titulo,supplier:proveedor,
+        cost:'$'+costo.toLocaleString('es-AR'),sale1:'$'+precio.toLocaleString('es-AR'),sale1_label:'x1',
+        sale2:'$'+oferta.toLocaleString('es-AR'),sale2_label:'x2',qty_num:cantidad,
+        qty_display:cantidad+' unidades',total_cost:'$'+(costo*cantidad).toLocaleString('es-AR'),
+        single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:generateBarcode(newId),provTipo:''};
+      products.push(newP);stockMap[newId]=cantidad;extraMap[newId]={date:'',obs:''};
+      try{
+        await _sbFetch('POST','products?on_conflict=id',{id:newId,tag:rubro,title:titulo,supplier:proveedor,
+          cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,sale2_label:'x2',
+          qty_num:cantidad,qty_display:newP.qty_display,total_cost:newP.total_cost,
+          single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:newP.barcode,provTipo:''});
+        await _sbFetch('POST','stock?on_conflict=product_id',{product_id:newId,qty:cantidad});
+        added++;
+      }catch(err){errors++;console.warn('Error:',err);}
+    }
+    log.innerHTML=`<span style="color:var(--green)">✅ ${added} productos cargados</span>${errors>0?` <span style="color:var(--red)">· ${errors} errores</span>`:''}`;
+    saveAll();renderAll();showToast('✅ Carga masiva: '+added+' productos');
+  };
+
+  const reader=new FileReader();
+  reader.onerror=()=>{ log.innerHTML='<span style="color:var(--red)">Error leyendo archivo</span>'; };
+
+  if(isXlsx){
     reader.onload=async function(e){
       try{
-        // Parse CSV or Excel
-        let rows=[];
-        const text=e.target.result;
-        
-        if(file.name.endsWith('.csv')){
-          // Parse CSV
-          const lines=text.split('\n').filter(l=>l.trim());
-          const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
-          rows=lines.slice(1).map(line=>{
-            const vals=line.split(',').map(v=>v.trim().replace(/['"]/g,''));
-            const obj={};
-            headers.forEach((h,i)=>obj[h]=vals[i]||'');
-            return obj;
+        if(typeof XLSX==='undefined'){
+          log.innerHTML='<span style="color:var(--accent)">Cargando librería Excel...</span>';
+          await new Promise((res,rej)=>{
+            const s=document.createElement('script');
+            s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            s.onload=res;s.onerror=rej;document.head.appendChild(s);
           });
-        } else {
-          log.innerHTML='<span style="color:var(--red)">Para .xlsx usá la versión CSV. Guardá el Excel como CSV (UTF-8) primero.</span>';
-          return;
         }
-        
-        if(!rows.length){log.innerHTML='<span style="color:var(--red)">No se encontraron filas</span>';return;}
-        
-        preview.innerHTML=`${rows.length} productos encontrados`;
-        let added=0,errors=0;
-        
-        for(const row of rows){
-          const titulo=row.titulo||row.title||row.nombre||row.producto||'';
-          const costo=parseFloat((row.costo||row.cost||'0').replace(/[.$,]/g,''))||0;
-          const cantidad=parseInt(row.cantidad||row.qty||row.stock||'0')||0;
-          const rubro=row.rubro||row.tag||row.categoria||'General';
-          const precio=parseFloat((row.precio_venta||row.precio||row.sale1||'0').replace(/[.$,]/g,''))||0;
-          const oferta=parseFloat((row.precio_oferta||row.sale2||'0').replace(/[.$,]/g,''))||0;
-          const proveedor=row.proveedor||row.supplier||'';
-          
-          if(!titulo){errors++;continue;}
-          
-          const newId=nextId++;
-          const newP={
-            id:newId,tag:rubro,title:titulo,supplier:proveedor,
-            cost:'$'+costo.toLocaleString('es-AR'),
-            sale1:'$'+precio.toLocaleString('es-AR'),sale1_label:'x1',
-            sale2:'$'+oferta.toLocaleString('es-AR'),sale2_label:'x2',
-            qty_num:cantidad,qty_display:cantidad+' unidades',
-            total_cost:'$'+(costo*cantidad).toLocaleString('es-AR'),
-            single:true,img1:'',img2:'',imgs:[],obs:'',active:true,
-            barcode:generateBarcode(newId),provTipo:''
-          };
-          
-          products.push(newP);
-          stockMap[newId]=cantidad;
-          extraMap[newId]={date:'',obs:''};
-          
-          // Guardar en Supabase
-          try{
-            await _sbFetch('POST','products?on_conflict=id',{
-              id:newId,tag:rubro,title:titulo,supplier:proveedor,
-              cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',
-              sale2:newP.sale2,sale2_label:'x2',
-              qty_num:cantidad,qty_display:newP.qty_display,
-              total_cost:newP.total_cost,single:true,
-              img1:'',img2:'',imgs:[],obs:'',active:true,
-              barcode:newP.barcode,provTipo:''
-            });
-            await _sbFetch('POST','stock?on_conflict=product_id',{product_id:newId,qty:cantidad});
-            added++;
-          }catch(err){
-            errors++;
-            console.warn('Error guardando producto:',err);
-          }
-        }
-        
-        log.innerHTML=`<span style="color:var(--green)">✅ ${added} productos cargados</span>${errors>0?` <span style="color:var(--red)">· ${errors} errores</span>`:''}`;
-        saveAll();
-        renderAll();
-        showToast('✅ Carga masiva completada: '+added+' productos');
-        
-      }catch(err){
-        log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>';
-      }
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const data=XLSX.utils.sheet_to_json(ws,{defval:''});
+        const rows=data.map(row=>{
+          const obj={};
+          Object.entries(row).forEach(([k,v])=>obj[k.toLowerCase().trim().replace(/ /g,'_')]=String(v||'').trim());
+          return obj;
+        });
+        await processRows(rows);
+      }catch(err){ log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>'; }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload=async function(e){
+      try{
+        const lines=e.target.result.split('\n').filter(l=>l.trim());
+        const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/['"]/g,'').replace(/ /g,'_'));
+        const rows=lines.slice(1).map(line=>{
+          const vals=line.split(',').map(v=>v.trim().replace(/['"]/g,''));
+          const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return obj;
+        });
+        await processRows(rows);
+      }catch(err){ log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>'; }
     };
     reader.readAsText(file,'utf-8');
-  }catch(e){
-    log.innerHTML='<span style="color:var(--red)">Error leyendo archivo: '+e.message+'</span>';
   }
 }
 
-// Inicializar valores de configuración al abrir
 function initConfigPage(){
   const obj=document.getElementById('cfg-objetivo');
   if(obj) obj.value=objetivoDiario||1000000;
   const pct=document.getElementById('cfg-comision-pct');
   if(pct) pct.value=parseFloat(localStorage.getItem('mv6_comision_pct'))||6;
+}
+
+
+// ── AUTO-GUARDADO DE VENTAS EN PROGRESO ──────────────────────────
+const PENDING_KEY = 'mv6_pending_jornada';
+
+function autoSavePendingJornada(){
+  if(!ventaRows.length) return;
+  try{
+    const data = {
+      fecha: document.getElementById('v_fecha')?.value || todayStr(),
+      ventaRows: ventaRows,
+      gastoRows: gastoRows,
+      ccInicio: parseFloat(document.getElementById('v_cc_inicio')?.value)||0,
+      clientesHoy: clientesHoy,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(PENDING_KEY, JSON.stringify(data));
+  }catch(e){}
+}
+
+function restorePendingJornada(){
+  try{
+    const stored = localStorage.getItem(PENDING_KEY);
+    if(!stored) return;
+    const data = JSON.parse(stored);
+    if(data.fecha !== todayStr()){
+      localStorage.removeItem(PENDING_KEY);
+      return;
+    }
+    if(!data.ventaRows || !data.ventaRows.length) return;
+    ventaRows = data.ventaRows;
+    gastoRows = data.gastoRows || [];
+    clientesHoy = data.clientesHoy || 0;
+    if(data.ccInicio){ const el=document.getElementById('v_cc_inicio');if(el)el.value=data.ccInicio; }
+    const ccNum=document.getElementById('cc-num');if(ccNum)ccNum.textContent=clientesHoy;
+    renderTicketsDelDia();
+    renderGastosTable();
+    recalcVentas();
+    updateObjetivo();
+    showToast('🔄 ' + ventaRows.length + ' ventas restauradas del día');
+  }catch(e){
+    console.warn('restorePendingJornada error:', e);
+    localStorage.removeItem(PENDING_KEY);
+  }
 }
 
 </script>
