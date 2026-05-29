@@ -7590,7 +7590,7 @@ async function saveCajaEntry(ch){
   });
 }
 
-async async function savePurchase(ph){
+async function savePurchase(ph){
   const data=await _sbFetch('POST','purchases?select=id',{
     product_id:ph.productId,product_title:ph.productTitle,
     date:ph.date,qty:ph.qty,cost:ph.cost,
