@@ -4434,7 +4434,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
   <!-- DATOS DEL DÍA COMPACTO -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.65rem 1rem;margin-bottom:.75rem">
-    <div style="display:flex;flex-wrap:wrap;gap:.55rem;align-items:flex-end">
+    <div class="sticky-filters" style="display:flex;flex-wrap:wrap;gap:.55rem;align-items:flex-end">
       <div class="vfield" style="min-width:130px;flex:1">
         <label style="font-size:.65rem">Fecha</label>
         <input type="date" id="v_fecha" style="padding:.32rem .5rem;font-size:.82rem">
@@ -7463,8 +7463,8 @@ async function loadFromSupabase(){
     }));
 
     // Load jornadas
-    // Solo cargar jornadas de los últimos 90 días
-    const fechaDesde=new Date();fechaDesde.setDate(fechaDesde.getDate()-90);
+    // Solo cargar jornadas de los últimos 180 días
+    const fechaDesde=new Date();fechaDesde.setDate(fechaDesde.getDate()-180);
     const fechaStr=fechaDesde.toISOString().split('T')[0];
     const jorns = await sbFetch('jornadas?select=*&fecha=gte.'+fechaStr+'&order=fecha.desc');
     ventasHistory=(jorns||[]).map(j=>({
@@ -7590,7 +7590,7 @@ async function saveCajaEntry(ch){
   });
 }
 
-async function savePurchase(ph){
+async async function savePurchase(ph){
   const data=await _sbFetch('POST','purchases?select=id',{
     product_id:ph.productId,product_title:ph.productTitle,
     date:ph.date,qty:ph.qty,cost:ph.cost,
@@ -8295,13 +8295,14 @@ function renderTicketsDelDia(){
         </div>
         <div style="display:flex;align-items:center;gap:.45rem">
           <span class="ticket-total">${fmtM(tk.total)}</span>
-          <button class="del-btn" onclick="removeTicket(${i})" style="font-size:.68rem">✕</button>
+          ${isAdminMode?`<button class="del-btn" onclick="removeTicket(${i})" style="font-size:.68rem">✕</button>`:''}
         </div>
       </div>
       <div class="ticket-items">${tk.items.map(it=>`${it.qty}x ${it.productTitle} @${fmtM(it.price)}`).join(' · ')}${tk.obs?` — ${tk.obs}`:''}</div>
     </div>`).join('');
 }
 function removeTicket(idx){
+  if(!isAdminMode){showToast('❌ Solo el administrador puede eliminar ventas');return;}
   const tk=ventaRows[idx];
   // Return stock for items in this ticket
   if(tk&&tk.items){
@@ -8316,6 +8317,7 @@ function removeTicket(idx){
   ventaRows.splice(idx,1);
   recalcVentas();
   renderTicketsDelDia();
+  autoSavePendingJornada();
   showToast('🔄 Venta eliminada — stock repuesto');
 }
 
@@ -8547,6 +8549,10 @@ function confirmarGuardar(){
 
 function limpiarJornada(){
   try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
+  // Delete draft from Supabase
+  if(currentUser && currentUser.email !== 'local'){
+    _sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});
+  }
   ventaRows=[];gastoRows=[];
   renderTicketsDelDia();renderGastosTable();
   const setV=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
@@ -8680,7 +8686,14 @@ function guardarNotaJornada(jid){
   const j=ventasHistory.find(x=>x.id===jid);
   if(!j)return;
   j.notaInterna=input.value;
+  j.edit_log = j.editLog || [];
+  j.edit_log.push({by: currentUser?.email||'admin', at: new Date().toISOString(), action: 'nota'});
   saveAll();
+  // Save note to Supabase
+  _sbFetch('POST','jornadas?on_conflict=id',{
+    id:jid, obs_dia: j.obsDia||'',
+    edit_log: j.edit_log, ventas: j.ventas||[], gastos: j.gastos||[]
+  }).catch(e=>console.warn('Nota sync error:',e.message));
   showToast('✅ Nota guardada');
 }
 function toggleJornada(jid){
@@ -8745,7 +8758,16 @@ function confirmarAnular(){
   }));
   j.anulada=true;j.anulacion={when:nowStr(),motivo};
   cajaHistory=cajaHistory.filter(c=>c.jornadaId!==anularJornadaId);
-  saveAll();renderAll();renderHistVentas();closeAnular();
+  saveAll();
+  // Sync anulacion to Supabase
+  const ja=ventasHistory.find(x=>x.id===anularJornadaId);
+  if(ja){
+    _sbFetch('POST','jornadas?on_conflict=id',{
+      id:anularJornadaId, anulada:true,
+      edit_log:ja.editLog||[], ventas:ja.ventas||[], gastos:ja.gastos||[]
+    }).catch(e=>console.warn('Anular sync error:',e.message));
+  }
+  renderAll();renderHistVentas();closeAnular();
   showToast('🚫 Jornada anulada — stock repuesto');
 }
 
@@ -9613,8 +9635,13 @@ function saveNewProduct(){
   newP.barcode=generateBarcode(newP.id);
   products.push(newP);stockMap[newP.id]=fs;
   extraMap[newP.id]={date:document.getElementById('np_date')?.value||'',obs:document.getElementById('np_obs')?.value||''};
-  if(qty>0)purchaseHistory.push({id:Date.now(),productId:newP.id,productTitle:title,
-    date:document.getElementById('np_date')?.value||todayStr(),qty,cost,sale1,sale2,note:'Alta inicial'});
+  if(qty>0){
+    const ph={id:Date.now(),productId:newP.id,productTitle:title,
+      date:document.getElementById('np_date')?.value||todayStr(),qty,cost,sale1,sale2,
+      note:'Alta inicial',pago:'efectivo'};
+    purchaseHistory.push(ph);
+    savePurchase(ph).catch(e=>console.warn('savePurchase error:',e));
+  }
   saveAll();
   // Subir a Supabase con imágenes a Storage
   saveProduct(newP).then(()=>{
@@ -9655,7 +9682,9 @@ function confirmPurchase(){
   const sale2=parseFloat(document.getElementById('np2_sale2')?.value)||parseMoney(p.sale2);
   const date=document.getElementById('np2_date')?.value||todayStr();
   const note=document.getElementById('np2_note')?.value.trim()||'';
-  const pago=document.getElementById('np2_pago')?.value||'efectivo';purchaseHistory.push({id:Date.now(),productId:purchasingId,productTitle:p.title,date,qty,cost,sale1,sale2,note,pago});
+  const pago=document.getElementById('np2_pago')?.value||'efectivo';const ph2={id:Date.now(),productId:purchasingId,productTitle:p.title,date,qty,cost,sale1,sale2,note,pago};
+  purchaseHistory.push(ph2);
+  savePurchase(ph2).catch(e=>console.warn('savePurchase error:',e));
   if(Math.abs(cost-parseMoney(p.cost))>1)p.cost=fmtM(cost);
   if(Math.abs(sale1-parseMoney(p.sale1))>1)p.sale1=fmtM(sale1);
   if(Math.abs(sale2-parseMoney(p.sale2))>1)p.sale2=fmtM(sale2);
@@ -10675,7 +10704,9 @@ function renderProveedores(){
   };
 
   // Filtrar por búsqueda
-  const filtered=q?proveedores.filter(p=>p.nombre.toLowerCase().includes(q)||((p.tipo||'').toLowerCase().includes(q))):proveedores;
+  const soloDeuda=document.getElementById('provFiltroDeuda')?.checked||false;
+  let filtered=q?proveedores.filter(p=>p.nombre.toLowerCase().includes(q)||((p.tipo||'').toLowerCase().includes(q))):[...proveedores];
+  if(soloDeuda) filtered=filtered.filter(p=>p.ctacte&&(p.saldo||0)>0);
 
   // Agrupar por tipo
   let html='';
@@ -10800,8 +10831,11 @@ function confirmarNuevoProveedor(){
 function eliminarProveedor(){
   if(!editingProveedorId)return;
   if(!confirm('¿Eliminar este proveedor?'))return;
-  proveedores=proveedores.filter(p=>p.id!==editingProveedorId);
-  saveProveedores();closeNuevoProveedor();renderProveedores();
+  const _idDel=editingProveedorId;
+  proveedores=proveedores.filter(p=>p.id!==_idDel);
+  saveProveedores();
+  _sbFetch('DELETE','proveedores?id=eq.'+_idDel).catch(e=>console.warn('Delete prov:',e));
+  closeNuevoProveedor();renderProveedores();
   showToast('🗑️ Proveedor eliminado');
 }
 function openDetalleProveedor(id){
@@ -10880,7 +10914,23 @@ function confirmarPagoProveedor(){
   if(!p.movimientos)p.movimientos=[];
   p.movimientos.push({tipo:'pago',importe,medio,fecha,detalle:nota||`Pago ${medio}`});
   p.saldo=Math.max(0,(p.saldo||0)-importe);
-  saveProveedores();closePagoProveedor();
+  saveProveedores();
+  // Descontar de Caja Ivo si el medio es efectivo o transferencia
+  if(confirm(`¿Descontar ${fmtM(importe)} de Caja Ivo también?\nMedio: ${medio}`)){
+    if(!cajaIvoMovimientos) cajaIvoMovimientos=[];
+    cajaIvoMovimientos.push({
+      id:'civ'+Date.now(),
+      fecha,
+      tipo:'egreso',
+      importe:-importe,
+      detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,
+      medio
+    });
+    cajaIvoSaldoInicial=(cajaIvoSaldoInicial||0)-importe;
+    saveCajaIvo();
+    if(typeof renderCajaPage==='function') renderCajaPage();
+  }
+  closePagoProveedor();
   openDetalleProveedor(currentProveedorId);
   showToast('✅ Pago registrado — Saldo: '+fmtM(p.saldo));
 }
@@ -11746,44 +11796,62 @@ function getTipoProvDia(){
 
 function renderListaCompras(tipoProv){
   const productos=getListaCompras(tipoProv);
-  if(!productos.length)return`<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">Sin productos para reponer de ${tipoProv}.</p>`;
+  if(!productos.length)return`<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">Sin productos para reponer${tipoProv?' de '+tipoProv:''}.</p>`;
   return`<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
     <thead><tr>
       <th style="text-align:left;padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Producto</th>
       <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Stock</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Stock orig.</th>
+      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Orig.</th>
       <th style="text-align:left;padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Proveedor</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Precio costo</th>
+      <th style="text-align:left;padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Dir. / Tel.</th>
+      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Costo</th>
+      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">A reponer</th>
     </tr></thead>
-    <tbody>${productos.map(p=>`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.4rem .6rem;font-size:.8rem;font-weight:600">${p.title}</td>
-      <td style="padding:.4rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${getStock(p.id)===0?'var(--accent)':'var(--yellow)'}">${getStock(p.id)}</td>
-      <td style="padding:.4rem .6rem;text-align:center;font-size:.78rem;color:var(--muted)">${p.qty_num}</td>
-      <td style="padding:.4rem .6rem;font-size:.75rem;color:var(--muted)">${p.supplier||'—'}</td>
-      <td style="padding:.4rem .6rem;text-align:center;font-size:.78rem">${p.cost}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
+    <tbody>${productos.map(p=>{
+      const st=getStock(p.id);
+      const prov=proveedores.find(pr=>pr.nombre===p.supplier)||{};
+      const aReponer=Math.max(0,(p.qty_num||0)-st);
+      return`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:.4rem .6rem;font-size:.8rem;font-weight:600">${p.title}</td>
+        <td style="padding:.4rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${st===0?'var(--red)':'var(--yellow)'}">${st}</td>
+        <td style="padding:.4rem .6rem;text-align:center;font-size:.78rem;color:var(--muted)">${p.qty_num||0}</td>
+        <td style="padding:.4rem .6rem;font-size:.75rem">${p.supplier||'—'}</td>
+        <td style="padding:.4rem .6rem;font-size:.72rem;color:var(--muted)">${prov.dir||'—'}${prov.tel?`<br><span style="color:var(--blue)">📞 ${prov.tel}</span>`:''}</td>
+        <td style="padding:.4rem .6rem;text-align:center;font-size:.78rem">${p.cost||'—'}</td>
+        <td style="padding:.4rem .6rem;text-align:center"><input type="number" min="0" value="${aReponer}" style="width:55px;padding:.2rem .3rem;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-align:center;font-size:.82rem" title="A reponer"></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
 }
 
 function imprimirListaCompras(tipoProv){
   const productos=getListaCompras(tipoProv);
   if(!productos.length){showToast('Sin productos para reponer');return;}
   const fecha=new Date().toLocaleDateString('es-AR');
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Compras ${tipoProv}</title>
+  const rows=productos.map((p,i)=>{
+    const st=getStock(p.id);
+    const prov=proveedores.find(pr=>pr.nombre===p.supplier)||{};
+    const aReponer=Math.max(0,(p.qty_num||0)-st);
+    return`<tr><td>${i+1}</td><td><strong>${p.title}</strong></td>
+    <td style="text-align:center;color:${st===0?'red':'orange'}">${st}</td>
+    <td style="text-align:center">${p.qty_num||0}</td>
+    <td>${p.supplier||'—'}</td>
+    <td>${prov.dir||'—'}</td>
+    <td>${prov.tel||'—'}</td>
+    <td>${p.cost||'—'}</td>
+    <td style="text-align:center;font-weight:bold">${aReponer}</td></tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Compras</title>
   <style>body{font-family:Arial,sans-serif;padding:20px}h1{font-size:18px}table{width:100%;border-collapse:collapse}
-  th,td{border:1px solid #ccc;padding:8px;font-size:13px}th{background:#f0f0f0;font-weight:bold}
+  th,td{border:1px solid #ccc;padding:7px;font-size:12px}th{background:#f0f0f0}
   @media print{@page{margin:10mm}}</style></head>
-  <body><h1>📋 Lista de Compras — ${tipoProv} — ${fecha}</h1>
-  <table><thead><tr><th>#</th><th>Producto</th><th>Stock actual</th><th>Stock original</th><th>Proveedor</th><th>Costo unit.</th></tr></thead>
-  <tbody>${productos.map((p,i)=>`<tr><td>${i+1}</td><td><strong>${p.title}</strong></td><td style="text-align:center;color:${getStock(p.id)===0?'red':'orange'}">${getStock(p.id)}</td><td style="text-align:center">${p.qty_num}</td><td>${p.supplier||'—'}</td><td>${p.cost}</td></tr>`).join('')}</tbody></table>
-  <p style="margin-top:20px;font-size:11px;color:#888">Generado por Merch Pro · ${fecha}</p>
-  <scr'+'ipt>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500)}</scr'+'ipt>
-  </body></html>`;
-  const w=window.open('','_blank','width=800,height=600');
-  if(w){w.document.write(html);w.document.close();}
+  <body><h1>Lista de Compras${tipoProv?' — '+tipoProv:''} — ${fecha}</h1>
+  <table><thead><tr><th>#</th><th>Producto</th><th>Stock</th><th>Orig.</th><th>Proveedor</th><th>Dirección</th><th>Tel.</th><th>Costo</th><th>A reponer</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <p style="margin-top:10px;font-size:11px">Total: ${productos.length} productos</p>
+  <script>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
-// ══ CIERRE MENSUAL ════════════════════════════════════════════════
 function renderHistorialAjustes(){
   const el=document.getElementById('historialAjustesContent');if(!el)return;
   // Recargar desde localStorage
@@ -12001,7 +12069,11 @@ function exportarCierreMensualPDF(year,month){
   .card .lbl{font-size:11px;color:#666;text-transform:uppercase;margin-bottom:4px}
   .card .val{font-size:18px;font-weight:bold}
   .green{color:#2e7d32}.red{color:#c62828}.blue{color:#1565c0}.yellow{color:#f57f17}
-  @media print{@page{margin:12mm}}</style></head>
+  @media print{@page{margin:12mm}}
+/* ══ STICKY NAV + FILTERS ══════════════════════════════════════ */
+.nav{position:sticky!important;top:0!important;z-index:200!important;}
+.sticky-filters{position:sticky;top:52px;z-index:99;background:var(--bg);padding:.4rem 0;border-bottom:1px solid var(--border);margin-bottom:.6rem;}
+</style></head>
   <body><h1>📊 Cierre Mensual — ${meses[month]} ${year}</h1>
   <p style="color:#666;font-size:13px">${data.jornadas} días trabajados · Generado por Merch Pro</p>
   <div class="grid">
@@ -12520,6 +12592,10 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
 
   <!-- Buscador -->
   <div style="margin-bottom:.85rem">
+    <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;margin-bottom:.5rem">
+      <input type="checkbox" id="provFiltroDeuda" onchange="renderProveedores()">
+      Solo proveedores con deuda
+    </label><br>
     <input type="text" id="provSearch" placeholder="🔍 Buscar proveedor por nombre o tipo..." oninput="renderProveedores()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:.48rem .8rem;font-size:.82rem;font-family:'DM Sans',sans-serif">
   </div>
 
@@ -14507,9 +14583,45 @@ function autoSavePendingJornada(){
     };
     localStorage.setItem(PENDING_KEY, JSON.stringify(data));
   }catch(e){}
+  // También guardar borrador en Supabase para recuperación multi-dispositivo
+  if(currentUser && currentUser.email !== 'local'){
+    _sbFetch('POST','jornadas?on_conflict=id',{
+      id:'draft_'+currentUser.id,
+      fecha: document.getElementById('v_fecha')?.value || todayStr(),
+      vendedor: currentUser.email,
+      obs_dia: document.getElementById('v_obs_dia')?.value||'',
+      anulada: false, edit_log: [],
+      ventas: ventaRows, gastos: gastoRows,
+      cc_inicio: parseFloat(document.getElementById('v_cc_inicio')?.value)||0,
+      total_ventas: ventaRows.reduce((s,t)=>s+t.total,0),
+      total_prendas: ventaRows.reduce((s,t)=>s+(t.prendas||0),0),
+      tickets: ventaRows.length,
+      // Mark as draft
+      is_draft: true
+    }).catch(()=>{});
+  }
 }
 
-function restorePendingJornada(){
+async function restorePendingJornada(){
+  // Check Supabase draft first (for multi-device recovery)
+  if(currentUser && currentUser.email !== 'local'){
+    try{
+      const drafts = await _sbFetch('GET','jornadas?select=*&id=eq.draft_'+currentUser.id+'&limit=1');
+      if(drafts && drafts[0] && drafts[0].ventas && drafts[0].ventas.length){
+        const draft = drafts[0];
+        if(draft.fecha === todayStr()){
+          ventaRows = draft.ventas || [];
+          gastoRows = draft.gastos || [];
+          if(draft.cc_inicio){ const el=document.getElementById('v_cc_inicio');if(el)el.value=draft.cc_inicio; }
+          const ccNum=document.getElementById('cc-num');if(ccNum)ccNum.textContent=clientesHoy;
+          renderTicketsDelDia();renderGastosTable();recalcVentas();updateObjetivo();
+          showToast('🔄 ' + ventaRows.length + ' ventas restauradas desde la nube');
+          return;
+        }
+      }
+    }catch(e){}
+  }
+  // Fallback to localStorage
   try{
     const stored = localStorage.getItem(PENDING_KEY);
     if(!stored) return;
