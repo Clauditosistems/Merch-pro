@@ -350,6 +350,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
   .page{padding:0}
   .section-card{background:white;border:1px solid #ccc;break-inside:avoid}
 }
+
+.nav{position:sticky!important;top:0!important;z-index:200!important;}
+.sticky-filters{position:sticky;top:52px;z-index:99;background:var(--bg);padding:.4rem 0;border-bottom:1px solid var(--border);margin-bottom:.6rem;}
 </style>
 </head>
 <body style="">
@@ -5714,7 +5717,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <div class="cp-item"><span class="cpl">Gan. estimada</span><span class="cpv" id="cp_earned">$0</span></div>
         </div>
         <div class="form-actions">
-          <button class="btn btn-primary" onclick="saveProduct()">💾 Guardar</button>
+          <button class="btn btn-primary" onclick="saveProductEdit()">💾 Guardar</button>
           <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancelar</button>
           <button class="btn btn-danger" onclick="resetProduct()">↺ Restablecer</button>
         </div>
@@ -5775,7 +5778,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <button class="btn" onclick="archivarProducto(editingId)" id="btn-archivar" style="font-size:.78rem;background:rgba(140,123,107,.15);color:var(--muted);border:1px solid var(--border)">📦 Archivar</button>
           </div>
           <div style="display:flex;gap:.5rem">
-            <button class="btn btn-primary" onclick="saveProduct()">💾 Guardar</button>
+            <button class="btn btn-primary" onclick="saveProductEdit()">💾 Guardar</button>
             <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancelar</button>
           </div>
         </div>
@@ -8845,12 +8848,6 @@ function recalcEditVenta(){
   set('ev_total',fmtM(total));
 }
 function closeEditVenta(){document.getElementById('editVentaModal').classList.remove('open');document.body.style.overflow='';editVentaJornadaId=null;editVentaRowRid=null;}
-function recalcEditVenta(){
-  const qty=parseInt(document.getElementById('ev_qty').value)||0;
-  const price=parseFloat(document.getElementById('ev_price').value)||0;
-  const desc=parseFloat(document.getElementById('ev_desc').value)||0;
-  document.getElementById('ev_total').value=fmtM(Math.max(0,price-desc));
-}
 function confirmarEditVenta(){
   const motivo=(document.getElementById('ev_motivo')?.value||'').trim();
   if(!motivo){showToast('❌ Ingresá el motivo de edición');return;}
@@ -9505,7 +9502,7 @@ function updateCalcPreview(){
   set('cp_sold',sold+' u.');
   set('cp_earned',fmtM(p1*sold));
 }
-function saveProduct(){
+function saveProductEdit(){
   if(editingId===null)return;const p=products.find(x=>x.id===editingId);
   const cost=parseFloat(document.getElementById('f_cost')?.value)||parseMoney(p.cost);
   const sale1=parseFloat(document.getElementById('f_sale1')?.value)||parseMoney(p.sale1);
@@ -12070,369 +12067,6 @@ function exportarCierreMensualPDF(year,month){
   .card .val{font-size:18px;font-weight:bold}
   .green{color:#2e7d32}.red{color:#c62828}.blue{color:#1565c0}.yellow{color:#f57f17}
   @media print{@page{margin:12mm}}
-/* ══ STICKY NAV + FILTERS ══════════════════════════════════════ */
-.nav{position:sticky!important;top:0!important;z-index:200!important;}
-.sticky-filters{position:sticky;top:52px;z-index:99;background:var(--bg);padding:.4rem 0;border-bottom:1px solid var(--border);margin-bottom:.6rem;}
-</style></head>
-  <body><h1>📊 Cierre Mensual — ${meses[month]} ${year}</h1>
-  <p style="color:#666;font-size:13px">${data.jornadas} días trabajados · Generado por Merch Pro</p>
-  <div class="grid">
-    <div class="card"><div class="lbl">Total Ventas</div><div class="val yellow">${fmtM(data.totVentas)}</div></div>
-    <div class="card"><div class="lbl">Ganancia Real</div><div class="val green">${fmtM(data.gananciaReal)}</div></div>
-    <div class="card"><div class="lbl">Efectivo</div><div class="val green">${fmtM(data.totEfec)}</div></div>
-    <div class="card"><div class="lbl">Transferencia</div><div class="val blue">${fmtM(data.totTransf)}</div></div>
-    <div class="card"><div class="lbl">CMV</div><div class="val red">${fmtM(data.totCMV)}</div></div>
-    <div class="card"><div class="lbl">Comisiones</div><div class="val red">${fmtM(data.totComisiones)}</div></div>
-    <div class="card"><div class="lbl">Gastos</div><div class="val red">${fmtM(data.totGastos)}</div></div>
-    <div class="card"><div class="lbl">Descuentos</div><div class="val red">${fmtM(data.totDesc)}</div></div>
-    <div class="card"><div class="lbl">Tickets</div><div class="val">${data.totTickets}</div></div>
-    <div class="card"><div class="lbl">Prendas</div><div class="val">${data.totPrendas}</div></div>
-    <div class="card"><div class="lbl">Clientes</div><div class="val">${data.totClientes}</div></div>
-    <div class="card"><div class="lbl">Conversión</div><div class="val">${data.conversion}%</div></div>
-  </div>
-  <scr'+'ipt>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500)}</scr'+'ipt>
-  </body></html>`;
-  const w=window.open('','_blank','width=900,height=700');
-  if(w){w.document.write(html);w.document.close();}
-}
-// ═════════════════════════════════════════════════════════════════
-// ══ OBJETIVO DIARIO ══════════════════════════════════════════════
-let objetivoDiario=1000000;
-
-function updateObjetivo(){
-  const totVentas=ventaRows.reduce((s,t)=>s+t.total,0);
-  const falta=Math.max(0,objetivoDiario-totVentas);
-  const ventasTxt=document.getElementById('obj-ventas-txt');
-  const metaTxt=document.getElementById('obj-meta-txt');
-  const msg=document.getElementById('obj-mensaje');
-  const semR=document.getElementById('sem-rojo');
-  const semA=document.getElementById('sem-amarillo');
-  const semV=document.getElementById('sem-verde');
-  if(ventasTxt)ventasTxt.textContent=fmtM(totVentas);
-  if(metaTxt)metaTxt.textContent=fmtM(objetivoDiario);
-  // Apagar todos
-  if(semR){semR.style.opacity='.2';semR.style.boxShadow='none';}
-  if(semA){semA.style.opacity='.2';semA.style.boxShadow='none';}
-  if(semV){semV.style.opacity='.2';semV.style.boxShadow='none';}
-  if(totVentas===0){
-    if(msg){msg.textContent='Sin ventas por el momento';msg.style.color='var(--muted)';}
-  } else if(totVentas<500000){
-    if(semR){semR.style.opacity='1';semR.style.boxShadow='0 0 14px 4px rgba(220,50,50,.6)';}
-    if(msg){msg.textContent='⚡ Arrancan las ventas — ¡a empujar! Faltan '+fmtM(falta);msg.style.color='#e05050';}
-  } else if(totVentas<1000000){
-    if(semA){semA.style.opacity='1';semA.style.boxShadow='0 0 14px 4px rgba(200,160,0,.7)';}
-    if(msg){msg.textContent='🔥 Vamos bien — ¡cerca del objetivo! Faltan '+fmtM(falta);msg.style.color='#b8950a';}
-  } else {
-    if(semV){semV.style.opacity='1';semV.style.boxShadow='0 0 18px 6px rgba(60,180,80,.7)';}
-    if(msg){msg.textContent='🎉 ¡Objetivo superado! Excelente día';msg.style.color='#3db85a';}
-  }
-}
-
-function editarObjetivo(){
-  const nuevo=prompt('Meta diaria de ventas ($):',objetivoDiario);
-  if(nuevo===null)return;
-  const n=parseFloat(nuevo);
-  if(isNaN(n)||n<=0){showToast('❌ Valor inválido');return;}
-  objetivoDiario=n;
-  localStorage.setItem('mv6_objetivo',n);
-  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',objetivo:n,updated_at:new Date().toISOString()}]).catch(()=>{});
-  updateObjetivo();
-  showToast('✅ Objetivo actualizado: '+fmtM(n));
-}
-
-// ══ TOGGLE COMISIÓN ══════════════════════════════════════════════
-function onComisionToggle(){
-  const chk=document.getElementById('comision-toggle');
-  const label=document.getElementById('comision-toggle-label');
-  const slider=document.getElementById('comision-slider');
-  const knob=document.getElementById('comision-knob');
-  const preview=document.getElementById('comision-preview-line');
-  if(!chk)return;
-  const aplica=chk.checked;
-  if(label){label.textContent=aplica?'✅ SÍ aplica':'❌ NO aplica';label.style.color=aplica?'var(--green)':'var(--accent)';}
-  if(slider)slider.style.background=aplica?'var(--green)':'var(--muted)';
-  if(knob)knob.style.transform=aplica?'translateX(22px)':'translateX(0px)';
-  // Actualizar la casilla de comisión y ganancia en el resumen del cierre
-  const totVr=ventaRows.reduce((s,t)=>s+t.total,0);
-  const totTr=ventaRows.filter(t=>t.medio==='transferencia').reduce((s,t)=>s+t.total,0);
-  const totEr=ventaRows.filter(t=>t.medio==='efectivo').reduce((s,t)=>s+t.total,0);
-  const totGr=gastoRows.reduce((s,r)=>s+(r.importe||0),0);
-  const cTr=Math.round(totTr*0.04);
-  const bNeta=totVr-cTr;
-  let cmvR=0;ventaRows.forEach(tk=>(tk.items||[]).forEach(it=>{cmvR+=it.isVintage||it.productId===VINTAGE_ID?it.price*it.qty*0.5:(it.productCost||0)*it.qty;}));
-  const comR=aplica?Math.round(bNeta*0.06):0;
-  const ganR=Math.round(bNeta-comR-totGr-cmvR);
-  const ccI=parseFloat(document.getElementById('v_cc_inicio')?.value)||0;
-  const efR=parseFloat(document.getElementById('v_efec_real')?.value)||0;
-  const ccF=parseFloat(document.getElementById('v_cc_final')?.value)||0;
-  const efE=ccI+totEr-totGr-ccF;
-  const diff=efR-efE;
-  // Actualizar stats del cierre
-  const statsEls=document.querySelectorAll('#cierreStats .cierre-item');
-  statsEls.forEach(el=>{
-    const lbl=el.querySelector('.cierre-lbl')?.textContent||'';
-    const val=el.querySelector('.cierre-val');
-    if(!val)return;
-    if(lbl==='Comisión (6%)')val.textContent=fmtM(comR);
-    if(lbl==='Ganancia neta')val.textContent=fmtM(ganR);
-    if(lbl==='Dif. caja'){val.textContent=fmtM(diff);val.style.color=diff>=0?'var(--green)':'var(--accent)';}
-  });
-  // Actualizar preview de ganancia
-  if(preview){
-    const totVt=ventaRows.reduce((s,t)=>s+t.total,0);
-    const totTransft=ventaRows.filter(t=>t.medio==='transferencia').reduce((s,t)=>s+t.total,0);
-    const baseNetat=totVt-(totTransft*0.04);
-    const comision=aplica?Math.round(baseNetat*0.06):0;
-    preview.textContent=aplica?
-      `Comisión: Morena ${fmtM(Math.round(baseNetat*0.04))} + Abel ${fmtM(Math.round(baseNetat*0.02))} = ${fmtM(comision)}`:
-      'Sin comisión hoy — ganancia completa para la empresa';
-    preview.style.color=aplica?'var(--muted)':'var(--green)';
-  }
-}
-// ═════════════════════════════════════════════════════════════════
-function updateDashboardExtra(){
-  const totHoy=ventaRows.reduce((s,t)=>s+t.total,0);
-  const pct=Math.min(Math.round(totHoy/objetivoDiario*100),100);
-  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  set('dash-ventas-hoy',fmtM(totHoy));
-  set('dash-tickets-hoy',ventaRows.length+' tickets · '+ventaRows.reduce((s,t)=>s+(t.prendas||0),0)+' prendas');
-  set('dash-obj-pct',pct+'%');
-  const barra=document.getElementById('dash-obj-barra');
-  if(barra){barra.style.width=pct+'%';barra.style.background=pct>=100?'var(--green)':pct>=75?'var(--yellow)':'var(--blue)';}
-  set('dash-caja-saldo',fmtM(getCajaIvoSaldo()));
-  const hoy=new Date();
-  const mesKey=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
-  const deudaProv=proveedores.filter(p=>p.ctacte).reduce((s,p)=>s+(p.saldo||0),0);
-  const sueldosPend=VENDEDORES_CONFIG.reduce((s,v)=>{const c=calcularSueldoMes(v.nombre,hoy.getFullYear(),hoy.getMonth()+1);return s+(c?c.total:0);},0);
-  const costosPend=obligacionesMes.filter(o=>o.mesKey===mesKey&&!o.pagado).reduce((s,o)=>s+o.monto,0);
-  set('dash-pasivos',fmtM(deudaProv+sueldosPend+costosPend));
-  const vencenHoy=obligacionesMes.filter(o=>!o.pagado&&o.vencimiento===todayStr());
-  const dashAlerts=document.getElementById('dash-alerts');
-  if(dashAlerts){dashAlerts.innerHTML=vencenHoy.length?vencenHoy.map(o=>'<div style="background:rgba(230,57,70,.1);border:1px solid rgba(230,57,70,.3);border-radius:7px;padding:.38rem .7rem;font-size:.75rem">⚠️ Vence hoy: <strong>'+o.nombre+'</strong> — '+fmtM(o.monto)+'</div>').join(''):'';}
-}
-function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();}
-
-function renderHistorialAjustes(){
-  const el=document.getElementById('historialAjustesContent');if(!el)return;
-  // Recargar desde localStorage
-  try{
-    const raw=localStorage.getItem('mv6_ajustes');
-    if(raw){const parsed=JSON.parse(raw);if(parsed&&parsed.length)window.stockAdjustments=parsed;}
-  }catch(e){}
-  const ajustes=(window.stockAdjustments||[]).slice().reverse();
-
-  // Renderizar filtros solo la primera vez (si no existen ya)
-  if(!document.getElementById('ajHistDesde')){
-    el.innerHTML=`
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.65rem">
-        <input type="date" id="ajHistDesde" onchange="renderAjustesResultados()"
-          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.32rem .5rem;font-size:.78rem;font-family:'DM Sans',sans-serif">
-        <span style="font-size:.72rem;color:var(--muted)">hasta</span>
-        <input type="date" id="ajHistHasta" onchange="renderAjustesResultados()"
-          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.32rem .5rem;font-size:.78rem;font-family:'DM Sans',sans-serif">
-        <button onclick="document.getElementById('ajHistDesde').value='';document.getElementById('ajHistHasta').value='';renderAjustesResultados()"
-          style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:.28rem .5rem;font-size:.72rem;cursor:pointer">✕ Limpiar</button>
-      </div>
-      <div id="ajResultados"></div>
-    `;
-  }
-
-  // Siempre actualizar solo el contenido
-  renderAjustesResultados();
-}
-
-function renderAjustesResultados(){
-  const el=document.getElementById('ajResultados');if(!el)return;
-  try{
-    const raw=localStorage.getItem('mv6_ajustes');
-    if(raw){const parsed=JSON.parse(raw);if(parsed&&parsed.length)window.stockAdjustments=parsed;}
-  }catch(e){}
-  const ajustes=(window.stockAdjustments||[]).slice().reverse();
-  if(!ajustes.length){el.innerHTML='<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">Sin ajustes registrados.</p>';return;}
-  el.innerHTML=renderAjustesTabla(ajustes);
-}
-
-function renderAjustesTabla(ajustes){
-  const desde=document.getElementById('ajHistDesde')?.value||'';
-  const hasta=document.getElementById('ajHistHasta')?.value||'';
-  
-  const filtered=ajustes.filter(a=>(!desde||a.date>=desde)&&(!hasta||a.date<=hasta));
-  if(!filtered.length)return'<p style="color:var(--muted);font-size:.82rem">Sin ajustes en el período.</p>';
-
-  // Resumen del período
-  const totFalt=filtered.reduce((s,a)=>s+a.totalFaltantes,0);
-  const totSobr=filtered.reduce((s,a)=>s+a.totalSobrantes,0);
-  const totImpacto=filtered.reduce((s,a)=>s+a.valorImpacto,0);
-
-  return`
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">
-      <div style="background:var(--surface2);border-radius:8px;padding:.4rem .7rem;text-align:center">
-        <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase">Ajustes</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem">${filtered.length}</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.4rem .7rem;text-align:center">
-        <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase">Total faltantes</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent)">${totFalt} u.</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.4rem .7rem;text-align:center">
-        <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase">Total sobrantes</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--green)">${totSobr} u.</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.4rem .7rem;text-align:center">
-        <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase">Impacto neto</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${totImpacto>=0?'var(--green)':'var(--accent)'}">${totImpacto>=0?'+':''}${fmtM(totImpacto)}</div>
-      </div>
-    </div>
-    ${filtered.map(a=>`
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:.65rem .9rem;margin-bottom:.4rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.35rem;margin-bottom:.4rem">
-          <div>
-            <span style="font-weight:700;font-size:.85rem">📅 ${a.date}</span>
-            <span style="font-size:.7rem;color:var(--muted);margin-left:.5rem">${a.time||''}</span>
-            ${a.motivo?`<span style="font-size:.7rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.1rem .35rem;margin-left:.4rem">${a.motivo}</span>`:''}
-          </div>
-          <div style="display:flex;gap:.65rem;font-size:.75rem">
-            <span style="color:var(--accent)">⬇️ ${a.totalFaltantes} falt.</span>
-            <span style="color:var(--green)">⬆️ ${a.totalSobrantes||0} sobr.</span>
-            <span style="color:${a.valorImpacto>=0?'var(--green)':'var(--accent)'};font-weight:700">${a.valorImpacto>=0?'+':''}${fmtM(a.valorImpacto)}</span>
-          </div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:.25rem">
-          ${(a.items||[]).filter(it=>it.diff!==0).map(it=>`
-            <span style="font-size:.7rem;background:${it.diff<0?'rgba(230,57,70,.1)':'rgba(67,185,127,.1)'};color:${it.diff<0?'var(--accent)':'var(--green)'};border-radius:5px;padding:.1rem .4rem">
-              ${it.productTitle}: ${it.oldStock}→${it.newStock} (${it.diff>0?'+':''}${it.diff})
-            </span>`).join('')}
-        </div>
-      </div>`).join('')}
-  `;
-}
-function renderRankingSemanal(){
-  const el=document.getElementById('rankingSemanalContent');if(!el)return;
-  const ranking=getRankingSemanal();
-  if(!ranking.length){el.innerHTML='<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">Sin ventas esta semana.</p>';return;}
-  el.innerHTML=`<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
-    <thead><tr>
-      <th style="padding:.4rem .6rem;text-align:center;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);width:36px">#</th>
-      <th style="text-align:left;padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Producto</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Unidades</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Monto</th>
-    </tr></thead>
-    <tbody>${ranking.map((p,i)=>`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:${i===0?'var(--yellow)':i===1?'var(--muted)':i===2?'#cd7f32':'var(--text)'}">${i+1}</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">${p.title}</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">${p.qty}</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">${fmtM(p.monto)}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-function renderListaComprasPage(){
-  const el=document.getElementById('listaComprasContent');if(!el)return;
-  const tipoDia=getTipoProvDia();
-  const tipoSel=document.getElementById('lcTipoSel')?.value||'';
-  const tipo=tipoSel||'';
-  const productos=getListaCompras(tipo);
-  const dia=getDiaSemana();
-  let aviso='';
-  if(tipoDia){
-    aviso=`<div style="background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.3);border-radius:9px;padding:.65rem 1rem;margin-bottom:.85rem;font-size:.82rem">
-      📅 Hoy es <strong>${tipoDia.dia}</strong> — ${tipoDia.emoji} Día de compras en <strong>${tipoDia.tipo}</strong>
-    </div>`;
-  }
-  el.innerHTML=aviso+`
-    <div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
-      <select id="lcTipoSel" onchange="renderListaComprasPage()"
-        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.38rem .6rem;font-size:.82rem;font-family:'DM Sans',sans-serif">
-        <option value="">Todos los tipos</option>
-        <option value="Flores" ${tipo==='Flores'?'selected':''}>🌸 Flores</option>
-        <option value="Salada" ${tipo==='Salada'?'selected':''}>🏬 Salada</option>
-        <option value="Oportunidades" ${tipo==='Oportunidades'?'selected':''}>💡 Oportunidades</option>
-        <option value="Fardos" ${tipo==='Fardos'?'selected':''}>📦 Fardos</option>
-        <option value="Importado" ${tipo==='Importado'?'selected':''}>✈️ Importado</option>
-      </select>
-      <button onclick="imprimirListaCompras('${tipo}')" class="btn btn-green" style="font-size:.78rem">🖨️ Imprimir lista</button>
-      <span style="font-size:.72rem;color:var(--muted)">${productos.length} producto${productos.length!==1?'s':''} para reponer</span>
-    </div>
-    ${renderListaCompras(tipo)}
-  `;
-}
-
-function getCierreMensual(year,month){
-  // month: 1-12
-  const prefix=`${year}-${String(month).padStart(2,'0')}`;
-  const jornadas=ventasHistory.filter(j=>j.fecha.startsWith(prefix)&&!j.anulada);
-  if(!jornadas.length)return null;
-  const totVentas=jornadas.reduce((s,j)=>s+(j.totalVentas||0),0);
-  const totEfec=jornadas.reduce((s,j)=>s+(j.totalEfec||0),0);
-  const totTransf=jornadas.reduce((s,j)=>s+(j.totalTransf||0),0);
-  const totGastos=jornadas.reduce((s,j)=>s+(j.totalGastos||0),0);
-  const totComisiones=jornadas.reduce((s,j)=>s+(j.comisiones||0),0);
-  const totCMV=jornadas.reduce((s,j)=>s+(j.cmv||0),0);
-  const totCostoTransf=jornadas.reduce((s,j)=>s+(j.costoTransferencias||0),0);
-  const totDesc=jornadas.reduce((s,j)=>s+(j.totalDesc||0),0);
-  const totPrendas=jornadas.reduce((s,j)=>s+(j.totalPrendas||0),0);
-  const totVintage=jornadas.reduce((s,j)=>s+(j.totalVintage||0),0);
-  const totTickets=jornadas.reduce((s,j)=>s+(j.tickets||0),0);
-  const totClientes=jornadas.reduce((s,j)=>s+(j.clientesHoy||0),0);
-  const gananciaReal=jornadas.reduce((s,j)=>s+(j.gananciaReal||0),0);
-  const diasConVenta=jornadas.length;
-  const promedioVentaDia=diasConVenta>0?Math.round(totVentas/diasConVenta):0;
-  const conversion=totClientes>0?Math.round(totTickets/totClientes*100):0;
-  return{
-    year,month,jornadas:diasConVenta,totVentas,totEfec,totTransf,totGastos,
-    totComisiones,totCMV,totCostoTransf,totDesc,totPrendas,totVintage,
-    totTickets,totClientes,gananciaReal,promedioVentaDia,conversion
-  };
-}
-
-function renderCierreMensual(){
-  const el=document.getElementById('cierreMensualContent');if(!el)return;
-  const sel=document.getElementById('cierreMensualSel');
-  const [year,month]=sel?(sel.value.split('-').map(Number)):[new Date().getFullYear(),new Date().getMonth()+1];
-  const data=getCierreMensual(year,month);
-  const meses=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  if(!data){el.innerHTML=`<p style="color:var(--muted);text-align:center;padding:2rem">Sin datos para ${meses[month]} ${year}.</p>`;return;}
-  el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin-bottom:1rem">
-      ${[
-        ['📊 Total ventas',fmtM(data.totVentas),'yellow'],
-        ['💵 Efectivo',fmtM(data.totEfec),'green'],
-        ['💳 Transferencia',fmtM(data.totTransf),'blue'],
-        ['🏷️ Costo transf.',fmtM(data.totCostoTransf),'red'],
-        ['🧾 Gastos',fmtM(data.totGastos),'red'],
-        ['👤 Comisiones',fmtM(data.totComisiones),'red'],
-        ['📦 CMV',fmtM(data.totCMV),'red'],
-        ['💰 Ganancia real',fmtM(data.gananciaReal),'green'],
-        ['🎟️ Tickets',data.totTickets,'orange'],
-        ['👕 Prendas',data.totPrendas,'purple'],
-        ['🕰️ Vintage',data.totVintage,'purple'],
-        ['👥 Clientes',data.totClientes,'yellow'],
-        ['📅 Días vendidos',data.jornadas,'blue'],
-        ['📈 Prom/día',fmtM(data.promedioVentaDia),'yellow'],
-        ['🔄 Conversión',data.conversion+'%','green'],
-        ['💸 Descuentos',fmtM(data.totDesc),'red'],
-      ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:9px;padding:.55rem .75rem;text-align:center">
-        <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">${l}</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.15rem;color:var(--${c})">${v}</div>
-      </div>`).join('')}
-    </div>
-    <button onclick="exportarCierreMensualPDF(${year},${month})" class="btn btn-green" style="font-size:.78rem">📄 Exportar PDF</button>
-  `;
-}
-
-function exportarCierreMensualPDF(year,month){
-  const data=getCierreMensual(year,month);if(!data)return;
-  const meses=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cierre ${meses[month]} ${year}</title>
-  <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:20px;margin-bottom:4px}
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
-  .card{border:1px solid #ddd;border-radius:8px;padding:10px;text-align:center}
-  .card .lbl{font-size:11px;color:#666;text-transform:uppercase;margin-bottom:4px}
-  .card .val{font-size:18px;font-weight:bold}
-  .green{color:#2e7d32}.red{color:#c62828}.blue{color:#1565c0}.yellow{color:#f57f17}
-  @media print{@page{margin:12mm}}
-/* ══ STICKY NAV + FILTERS ══════════════════════════════════════ */
-.nav{position:sticky!important;top:0!important;z-index:200!important;}
-.sticky-filters{position:sticky;top:52px;z-index:99;background:var(--bg);padding:.4rem 0;border-bottom:1px solid var(--border);margin-bottom:.6rem;}
 </style></head>
   <body><h1>📊 Cierre Mensual — ${meses[month]} ${year}</h1>
   <p style="color:#666;font-size:13px">${data.jornadas} días trabajados · Generado por Merch Pro</p>
