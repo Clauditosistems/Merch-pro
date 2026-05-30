@@ -4448,7 +4448,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica final ($)</label>
-        <input type="number" id="v_cc_final" value="0" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
+        <input type="number" id="v_cc_final" value="" placeholder="$0" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
       </div>
       <div class="vfield" style="min-width:160px;flex:2">
         <label style="color:var(--yellow);font-weight:800;font-size:.72rem;letter-spacing:.03em">⚠️ EFECTIVO REAL — OBLIGATORIO</label>
@@ -8062,8 +8062,13 @@ function buildCartProdSelect(selectedId,rid){
   const selName=sinProd?'👆 Tocá para elegir producto':isV?'🕰️ VINTAGE':(selProd?selProd.title:'— Seleccionar —');
   const stockTxt=isV?'':(selProd?' [stock:'+getStock(selProd.id)+']':'');
   const nameColor=sinProd?'var(--yellow)':isV?'var(--purple)':'var(--text)';
+  const prodImg=selProd?(selProd.img1||selProd.imgs?.[0]||''):'';
   return `<div style="display:flex;gap:.3rem;align-items:center;min-width:190px">
-    <span style="font-size:.92rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nameColor}">${selName}<span style="color:var(--muted);font-size:.75rem;font-weight:400"> ${stockTxt}</span></span>
+    <span style="font-size:.92rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nameColor};${prodImg?'cursor:pointer;text-decoration:underline dotted':''}" 
+      ${prodImg?`onclick="showImgModal(this.dataset.img,this.dataset.title)" data-img="${prodImg.replace(/"/g,'&quot;')}" data-title="${(selName).replace(/"/g,'&quot;')}"`:''}>
+      ${selName}<span style="color:var(--muted);font-size:.75rem;font-weight:400"> ${stockTxt}</span>
+      ${prodImg?'<span style="font-size:.65rem;color:var(--blue);margin-left:3px">📷</span>':''}
+    </span>
     <button class="btn btn-secondary" style="font-size:.8rem;padding:.38rem .75rem;white-space:nowrap;flex-shrink:0;font-weight:600" onclick="openCartPicker('${rid}')">🔍 ${sinProd?'Elegir':'Cambiar'}</button>
   </div>`;
 }
@@ -8160,8 +8165,8 @@ function renderCartTable(){
   tbody.innerHTML=cartItems.map(item=>{
     const isV=item.isVintage||item.productId===VINTAGE_ID;
     const disc=item.discPct||0;
-    const discAmt=Math.round(item.price*item.qty*disc/100);
-    const sub=item.price*item.qty-discAmt;
+    const discAmt=Math.round(item.price*item.qty*disc/100)+(item.discPesos||0);
+    const sub=Math.max(0,item.price*item.qty-discAmt);
     return `<tr class="${isV?'vintage-highlight':''}">
       <td style="min-width:185px">${buildCartProdSelect(item.productId,item.rid)}</td>
       <td><input type="number" min="1" value="${item.qty}" style="width:52px"
@@ -8182,7 +8187,7 @@ function renderCartTable(){
       </td>
       <td style="font-weight:700;color:${discAmt>0||item.discPesos>0?'var(--orange)':'var(--green)'};min-width:80px">${fmtM(sub)}${(discAmt>0||item.discPesos>0)?'<br><span style="font-size:.65rem;color:var(--accent)">-'+fmtM(discAmt+(item.discPesos||0))+'</span>':''}</td>
       <td><input type="text" value="${item.obs||''}" placeholder="${isV?'🕰️ Detalle vintage':'⚠️ Obs. obligatoria'}" 
-        style="${(discAmt>0||(item.discPesos||0)>0)&&!item.obs?'border-color:var(--red);background:rgba(230,57,70,.07)':''}"
+        style="${discAmt>0&&!item.obs?'border-color:var(--red);background:rgba(230,57,70,.07)':''}"
         oninput="cartItems.find(x=>x.rid==='${item.rid}').obs=this.value;renderCartTable()"></td>
       <td><button class="del-btn" onclick="removeCartItem('${item.rid}')">✕</button></td>
     </tr>`;
@@ -8309,7 +8314,15 @@ function removeTicket(idx){
   ventaRows.splice(idx,1);
   recalcVentas();
   renderTicketsDelDia();
-  autoSavePendingJornada();
+  if(ventaRows.length>0){
+    autoSavePendingJornada();
+  } else {
+    // Sin ventas: limpiar draft completamente
+    try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
+    if(currentUser&&currentUser.email!=='local'){
+      _sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});
+    }
+  }
   showToast('🔄 Venta eliminada — stock repuesto');
 }
 
@@ -8389,8 +8402,9 @@ function recalcVentas(){
 function abrirCierreModal(){
   if(!ventaRows.length){showToast('❌ No hay ventas para guardar');return;}
   // Validar efectivo real obligatorio y mayor a 0
-  const ccFinalVal=parseFloat(document.getElementById('v_cc_final')?.value);
-  if(isNaN(ccFinalVal)){showToast('⚠️ Ingresá la caja chica final');document.getElementById('v_cc_final')?.focus();return;}
+  const ccFinalRaw=document.getElementById('v_cc_final')?.value;
+  if(ccFinalRaw===''||ccFinalRaw===null||ccFinalRaw===undefined){showToast('⚠️ Ingresá la caja chica final');document.getElementById('v_cc_final')?.focus();return;}
+  const ccFinalVal=parseFloat(ccFinalRaw);
   const efecRealVal=parseFloat(document.getElementById('v_efec_real')?.value);
   if(!efecRealVal||efecRealVal<=0){
     showToast('❌ El efectivo real en caja es obligatorio y debe ser mayor a $0');
