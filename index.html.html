@@ -5270,6 +5270,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div style="font-size:.75rem;color:var(--muted);margin-top:.35rem" id="comision-preview-line"></div>
     <div class="warning-box" style="margin-top:.6rem">⚠️ Esta acción descuenta stock y no puede deshacerse. Solo admin puede anular.</div>
     <div class="form-actions" style="margin-top:.8rem">
+      <div id="cierreModalCanceladas" style="display:none;margin-bottom:.8rem"></div>
       <button class="btn btn-primary" onclick="confirmarGuardar()">✅ Confirmo, guardar jornada</button>
       <button class="btn btn-secondary" onclick="closeCierre()">✕ Revisar antes</button>
     </div>
@@ -8062,8 +8063,12 @@ function buildCartProdSelect(selectedId,rid){
   const selName=sinProd?'👆 Tocá para elegir producto':isV?'🕰️ VINTAGE':(selProd?selProd.title:'— Seleccionar —');
   const stockTxt=isV?'':(selProd?' [stock:'+getStock(selProd.id)+']':'');
   const nameColor=sinProd?'var(--yellow)':isV?'var(--purple)':'var(--text)';
+  const prodImg=selProd?(selProd.img1||selProd.imgs?.[0]||''):'';
   return `<div style="display:flex;gap:.3rem;align-items:center;min-width:190px">
-    <span style="font-size:.92rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nameColor}">${selName}<span style="color:var(--muted);font-size:.75rem;font-weight:400"> ${stockTxt}</span></span>
+    <span style="font-size:.92rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nameColor};${prodImg?'cursor:pointer;text-decoration:underline dotted':''}" 
+      ${prodImg?`onclick="showImgModal(this.dataset.img,this.dataset.title)" data-img="${prodImg.replace(/"/g,'&quot;')}" data-title="${selName.replace(/"/g,'&quot;')}"`:''}>
+      ${selName}<span style="color:var(--muted);font-size:.75rem;font-weight:400"> ${stockTxt}</span>${prodImg?'<span style="font-size:.65rem;color:var(--blue);margin-left:3px">📷</span>':''}
+    </span>
     <button class="btn btn-secondary" style="font-size:.8rem;padding:.38rem .75rem;white-space:nowrap;flex-shrink:0;font-weight:600" onclick="openCartPicker('${rid}')">🔍 ${sinProd?'Elegir':'Cambiar'}</button>
   </div>`;
 }
@@ -8186,7 +8191,7 @@ function renderCartTable(){
       <td style="font-weight:700;color:${discAmt>0||item.discPesos>0?'var(--orange)':'var(--green)'};min-width:80px">${fmtM(sub)}${(discAmt>0||item.discPesos>0)?'<br><span style="font-size:.65rem;color:var(--accent)">-'+fmtM(discAmt+(item.discPesos||0))+'</span>':''}</td>
       <td><input type="text" value="${item.obs||''}" placeholder="${isV?'🕰️ Detalle vintage':'⚠️ Obs. obligatoria'}" 
         style="${(discAmt>0||(item.discPesos||0)>0)&&!item.obs?'border-color:var(--red);background:rgba(230,57,70,.07)':''}"
-        oninput="cartItems.find(x=>x.rid==='${item.rid}').obs=this.value;renderCartTable()"></td>
+        oninput="cartItems.find(x=>x.rid==='${item.rid}').obs=this.value"></td>
       <td><button class="del-btn" onclick="removeCartItem('${item.rid}')">✕</button></td>
     </tr>`;
   }).join('');
@@ -8297,8 +8302,22 @@ function renderTicketsDelDia(){
     </div>`).join('');
 }
 function removeTicket(idx){
-  if(!isAdminMode){showToast('❌ Solo el administrador puede eliminar ventas');return;}
-  const tk=ventaRows[idx];
+  const tk=ventaRows[idx];if(!tk)return;
+  // Pedir justificación siempre (admin y vendedor)
+  const motivo=prompt('⚠️ ¿Motivo de la cancelación? (obligatorio)');
+  if(!motivo||!motivo.trim()){showToast('❌ Debés ingresar el motivo de cancelación');return;}
+  // Registrar en log de cancelaciones del día
+  if(!window.ventasCanceladas)window.ventasCanceladas=[];
+  window.ventasCanceladas.push({
+    rid:tk.rid,
+    cliente:tk.cliente||'Cliente',
+    vendedor:tk.vendedor||currentUser?.email||'—',
+    total:tk.total,
+    items:tk.items,
+    motivo:motivo.trim(),
+    hora:new Date().toLocaleTimeString('es-AR'),
+    canceladoPor:currentUser?.email||'—'
+  });
   // Return stock for items in this ticket
   if(tk&&tk.items){
     tk.items.forEach(it=>{
@@ -8430,6 +8449,10 @@ function abrirCierreModal(){
   const vendedoresPrev=ventaRows.map(t=>t.vendedor||'').filter(Boolean);
   const vcPrev={};vendedoresPrev.forEach(v=>vcPrev[v]=(vcPrev[v]||0)+1);
   const vendedorPrev=vendedoresPrev.length?Object.entries(vcPrev).sort((a,b)=>b[1]-a[1])[0][0]:'—';
+  // Limpiar canceladas si son de otro día
+  if(window.ventasCanceladas&&window.ventasCanceladas.length){
+    window.ventasCanceladas=window.ventasCanceladas.filter(v=>v._fecha===todayStr());
+  }
   const stats = isAdminMode ? [
     ['Total ventas',fmtM(totV),'yellow'],['Efectivo',fmtM(totEfec),'green'],
     ['Transfer.',fmtM(totTransf),'blue'],['Gastos',fmtM(totGastos),'red'],
@@ -8465,6 +8488,15 @@ function abrirCierreModal(){
     Object.entries(prodTotals).map(([n,d])=>`<tr><td>${n}</td><td>${d.qty} u.</td><td style="color:var(--green);font-weight:600">${fmtM(d.total)}</td></tr>`).join('')+
     (totalVintage?`<tr><td>🕰️ Vintage</td><td>${totalVintage} u.</td><td style="color:var(--purple)">${fmtM(ventaRows.filter(t=>t.items?.some(i=>i.isVintage||i.productId===VINTAGE_ID)).reduce((s,t)=>s+(t.items||[]).filter(i=>i.isVintage||i.productId===VINTAGE_ID).reduce((ss,i)=>ss+(i.subtotal||i.price*i.qty||0),0),0))}</td></tr>`:'');
   document.getElementById('cierreModal').classList.add('open');document.body.style.overflow='hidden';
+  // Mostrar ventas canceladas
+  const _canceladas=window.ventasCanceladas||[];
+  const _canceladasEl=document.getElementById('cierreModalCanceladas');
+  if(_canceladasEl){
+    _canceladasEl.style.display=_canceladas.length?'block':'none';
+    if(_canceladas.length){
+      _canceladasEl.innerHTML='<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.8rem"><div style="font-weight:700;font-size:.82rem;color:var(--red);margin-bottom:.5rem">🚫 Ventas canceladas ('+_canceladas.length+')</div>'+_canceladas.map(c=>'<div style="font-size:.75rem;padding:.3rem .5rem;background:rgba(230,57,70,.07);border-radius:6px;margin-bottom:.3rem"><b>'+c.cliente+'</b> · '+fmtM(c.total)+' · <span style="color:var(--muted)">'+c.hora+'</span><br><span style="color:var(--orange)">Motivo: '+c.motivo+'</span> · canceló: '+c.canceladoPor+'</div>').join('')+'</div>';
+    }
+  }
 }
 function closeCierre(){document.getElementById('cierreModal').classList.remove('open');document.body.style.overflow='';}
 
@@ -8522,7 +8554,8 @@ function confirmarGuardar(){
   const jornada={
     id:'j'+Date.now(),fecha,vendedor,obsDia,anulada:false,editLog:[],
     ccInicio:ccI,efecReal:efR,ccFinal:ccF,efecEsperado:efE,diff:efR-efE,
-    ventas:ventaRows.map(tk=>({...tk})),gastos:[...gastoRows],
+    ventas:ventaRows.map(tk=>({...tk})),
+    ventasCanceladas:window.ventasCanceladas||[],gastos:[...gastoRows],
     totalEfec:totEfec,totalTransf:totTransf,totalVentas:totV,totalGastos:totGastos,
     ganancia:totGan,gananciaReal,margenGanancia,totalPrendas,totalVintage,totalDesc,
     comisiones,costoTransferencias,cmv,aplicaComision,pctEfectivo,margenPromedio,conversion,
@@ -8546,6 +8579,7 @@ function confirmarGuardar(){
 
 function limpiarJornada(){
   try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
+  window.ventasCanceladas=[];
   if(currentUser&&currentUser.email!=='local'){_sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});}
   ventaRows=[];gastoRows=[];
   renderTicketsDelDia();renderGastosTable();
