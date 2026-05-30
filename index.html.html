@@ -4448,7 +4448,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica final ($)</label>
-        <input type="number" id="v_cc_final" value="" placeholder="$0" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
+        <input type="number" id="v_cc_final" value="0" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
       </div>
       <div class="vfield" style="min-width:160px;flex:2">
         <label style="color:var(--yellow);font-weight:800;font-size:.72rem;letter-spacing:.03em">⚠️ EFECTIVO REAL — OBLIGATORIO</label>
@@ -5681,12 +5681,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           </div>
           <div class="fgroup">
             <label>Categoría</label>
-            <select id="f_tag">
-              <option>Camperas</option><option>Camperitas</option><option>Pantalones</option>
-              <option>Remeras</option><option>Buzos</option><option>Sweaters</option>
-              <option>Térmicas</option><option>Calzas</option><option>Shorts</option>
-              <option>Conjuntos</option><option>Accesorios</option><option>General</option>
-            <option value="Vintage">Vintage</option></select>
+            <select id="f_tag"><option>General</option></select>
           </div>
           <div class="fgroup"><label>Fecha compra</label><input type="date" id="f_date"></div>
           <div class="fgroup"><label>Stock inicial</label><input type="number" id="f_qty" min="0" oninput="updateCalcPreview()"></div>
@@ -5705,6 +5700,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
             </div>
             <input type="number" id="f_sale2" min="0" oninput="updateCalcPreview()" placeholder="Sin precio promo" style="opacity: 1;">
           </div>
+          <label>🏷️ Precio oferta <span style="font-size:.65rem;color:var(--muted)">(0 = desactivado)</span></label>
+          <input type="number" id="f_oferta" min="0" value="0" placeholder="$0" oninput="recalcEditVenta()">
           <div class="fgroup full"><label>Observaciones</label><textarea id="f_obs" rows="2"></textarea></div>
         </div>
         <div class="calc-prev" style="margin-top:.55rem">
@@ -5837,12 +5834,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="fgroup full"><label>Nombre *</label><input type="text" id="np_title"></div>
         <div class="fgroup">
           <label>Categoría</label>
-          <select id="np_tag">
-            <option>Camperas</option><option>Camperitas</option><option>Pantalones</option>
-            <option>Remeras</option><option>Buzos</option><option>Sweaters</option>
-            <option>Térmicas</option><option>Calzas</option><option>Shorts</option>
-            <option>Conjuntos</option><option>Accesorios</option><option>General</option>
-          </select>
+          <select id="np_tag"><option>General</option></select>
         </div>
         <div class="fgroup full">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.22rem">
@@ -5871,6 +5863,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <label>Precio <select id="np_s2l" style="display:inline;width:auto;padding:.08rem .28rem;font-size:.73rem"><option>x2</option><option>x3</option></select> ($)</label>
           <input type="number" id="np_sale2" min="0" value="0">
         </div>
+        <label style="margin-top:.5rem">🏷️ Precio oferta <span style="font-size:.65rem;color:var(--muted)">(0 = desactivado)</span></label>
+        <input type="number" id="np_oferta" min="0" value="0" placeholder="$0">
         <div class="fgroup"><label>Fecha compra</label><input type="date" id="np_date"></div>
         <div class="fgroup full"><label>Observaciones</label><textarea id="np_obs" rows="2"></textarea></div>
         <div class="fgroup full">
@@ -7430,6 +7424,7 @@ async function loadFromSupabase(){
           sale2_label:sv.sale2_label||def.sale2_label,
           tag:sv.tag||def.tag,
           barcode:sv.barcode||def.barcode||'',
+          oferta:sv.oferta||def.oferta||'$0',
           provTipo:sv.provTipo||def.provTipo||'',
           img1:img1Final,img2:img2Final,imgs:imgsFinal
         };
@@ -7526,7 +7521,8 @@ async function loadFromSupabase(){
     // Load costos fijos from Supabase
     try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}}catch(e){}
     // Load configuracion from Supabase
-    try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;}}catch(e){}
+    try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){
+      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;}}catch(e){}
     showToast('✅ Datos cargados');
     renderAll();
     restorePendingJornada();
@@ -7593,6 +7589,7 @@ async function saveProduct(prod){
     id:prod.id,tag:prod.tag,title:prod.title,supplier:prod.supplier,
     cost:prod.cost,sale1:prod.sale1,sale1_label:prod.sale1_label,
     sale2:prod.sale2,sale2_label:prod.sale2_label,
+    oferta:prod.oferta||'$0',
     qty_num:prod.qty_num,qty_display:prod.qty_display,
     total_cost:prod.total_cost,single:prod.single,
     obs:prod.obs||'',active:true,
@@ -7809,6 +7806,8 @@ function calcProfit(p){
   const cost=parseMoney(p.cost),s1=parseMoney(p.sale1),s2=parseMoney(p.sale2);
   const qty=p.qty_num,s1q=parseSL(p.sale1_label),s2q=parseSL(p.sale2_label);
   const hasPromo=s2>0;
+  const ofertaPrice=parseMoney(p.oferta||'0');
+  const hasOferta=ofertaPrice>0;
   const up1=s1-(cost*s1q),up2=hasPromo?(s2-(cost*s2q)):0;
   const mg1=s1>0?Math.round(up1/s1*100):0,mg2=(hasPromo&&s2>0)?Math.round(up2/s2*100):0;
   // Margin on highest price; if no promo, margin is just on x1
@@ -7947,6 +7946,7 @@ function renderGrid(){
         <div class="prices">
           ${isAdminMode?`<div class="price-row admin-only"><span class="price-label">Costo</span><span class="price-value cost">${p.cost}</span></div>`:''}
           <div class="price-row"><span class="price-label">Venta ${p.sale1_label}</span><span class="price-value sale-1" style="color:#000">${p.sale1}${isAdminMode?` <span style="font-size:.63rem;color:${pc1}">(+${fmtM(c.up1)})</span>`:''}</span></div>
+          ${c.hasOferta?`<div class="price-row" style="background:rgba(255,140,0,.1);border-radius:5px;padding:.15rem .3rem;margin-top:.15rem"><span class="price-label" style="color:var(--orange)">🏷️ Oferta</span><span class="price-value" style="color:var(--orange);font-weight:700">${p.oferta}</span></div>`:''}
           ${c.hasPromo?`<div class="price-row"><span class="price-label">Venta ${p.sale2_label}</span><span class="price-value sale-2" style="color:#000">${p.sale2}${isAdminMode?` <span style="font-size:.63rem;color:${pc2}">(+${fmtM(c.up2)})</span>`:''}</span></div>`:''}
         </div>
         <div class="divider"></div>
@@ -8062,13 +8062,8 @@ function buildCartProdSelect(selectedId,rid){
   const selName=sinProd?'👆 Tocá para elegir producto':isV?'🕰️ VINTAGE':(selProd?selProd.title:'— Seleccionar —');
   const stockTxt=isV?'':(selProd?' [stock:'+getStock(selProd.id)+']':'');
   const nameColor=sinProd?'var(--yellow)':isV?'var(--purple)':'var(--text)';
-  const prodImg=selProd?(selProd.img1||selProd.imgs?.[0]||''):'';
   return `<div style="display:flex;gap:.3rem;align-items:center;min-width:190px">
-    <span style="font-size:.92rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nameColor};${prodImg?'cursor:pointer;text-decoration:underline dotted':''}" 
-      ${prodImg?`onclick="showImgModal(this.dataset.img,this.dataset.title)" data-img="${prodImg.replace(/"/g,'&quot;')}" data-title="${(selName).replace(/"/g,'&quot;')}"`:''}>
-      ${selName}<span style="color:var(--muted);font-size:.75rem;font-weight:400"> ${stockTxt}</span>
-      ${prodImg?'<span style="font-size:.65rem;color:var(--blue);margin-left:3px">📷</span>':''}
-    </span>
+    <span style="font-size:.92rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${nameColor}">${selName}<span style="color:var(--muted);font-size:.75rem;font-weight:400"> ${stockTxt}</span></span>
     <button class="btn btn-secondary" style="font-size:.8rem;padding:.38rem .75rem;white-space:nowrap;flex-shrink:0;font-weight:600" onclick="openCartPicker('${rid}')">🔍 ${sinProd?'Elegir':'Cambiar'}</button>
   </div>`;
 }
@@ -8165,16 +8160,19 @@ function renderCartTable(){
   tbody.innerHTML=cartItems.map(item=>{
     const isV=item.isVintage||item.productId===VINTAGE_ID;
     const disc=item.discPct||0;
-    const discAmt=Math.round(item.price*item.qty*disc/100)+(item.discPesos||0);
-    const sub=Math.max(0,item.price*item.qty-discAmt);
+    const discAmt=Math.round(item.price*item.qty*disc/100);
+    const sub=item.price*item.qty-discAmt;
     return `<tr class="${isV?'vintage-highlight':''}">
       <td style="min-width:185px">${buildCartProdSelect(item.productId,item.rid)}</td>
       <td><input type="number" min="1" value="${item.qty}" style="width:52px"
         oninput="(function(el,rid){const it=cartItems.find(x=>x.rid===rid);if(!it)return;it.qty=Math.max(1,+el.value||1);const p=products.find(x=>x.id===it.productId);if(p&&!it.isVintage){const s2q=parseSL(p.sale2_label),s2=parseMoney(p.sale2),s1=parseMoney(p.sale1);if(s2q>1&&s2>0){it.price=it.qty>=s2q?Math.round(s2/s2q):s1;}}recalcCarrito();})(this,'${item.rid}')"
         onblur="renderCartTable()"></td>
-      <td><input type="number" min="0" value="${item.price}" style="width:80px"
-        oninput="cartItems.find(x=>x.rid==='${item.rid}').price=+this.value||0;recalcCarrito()"
-        onblur="renderCartTable()"></td>
+      <td style="white-space:nowrap">
+        <input type="number" min="0" value="${item.price}" style="width:72px"
+          oninput="cartItems.find(x=>x.rid==='${item.rid}').price=+this.value||0;recalcCarrito()"
+          onblur="renderCartTable()">
+        ${(()=>{const _p=products.find(x=>x.id===item.productId);const _o=_p?parseMoney(_p.oferta||'0'):0;return _o>0?`<button title="Aplicar precio oferta: ${_p.oferta}" onclick="cartItems.find(x=>x.rid==='${item.rid}').price=${_o};renderCartTable();recalcCarrito()" style="background:var(--orange);color:#fff;border:none;border-radius:4px;padding:.15rem .3rem;font-size:.65rem;cursor:pointer;margin-left:2px">🏷️</button>`:''})()}
+      </td>
       <td>
         <div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">
           <input type="number" min="0" max="100" value="${disc}" style="width:46px" placeholder="%" title="Desc. %"
@@ -8187,7 +8185,7 @@ function renderCartTable(){
       </td>
       <td style="font-weight:700;color:${discAmt>0||item.discPesos>0?'var(--orange)':'var(--green)'};min-width:80px">${fmtM(sub)}${(discAmt>0||item.discPesos>0)?'<br><span style="font-size:.65rem;color:var(--accent)">-'+fmtM(discAmt+(item.discPesos||0))+'</span>':''}</td>
       <td><input type="text" value="${item.obs||''}" placeholder="${isV?'🕰️ Detalle vintage':'⚠️ Obs. obligatoria'}" 
-        style="${discAmt>0&&!item.obs?'border-color:var(--red);background:rgba(230,57,70,.07)':''}"
+        style="${(discAmt>0||(item.discPesos||0)>0)&&!item.obs?'border-color:var(--red);background:rgba(230,57,70,.07)':''}"
         oninput="cartItems.find(x=>x.rid==='${item.rid}').obs=this.value;renderCartTable()"></td>
       <td><button class="del-btn" onclick="removeCartItem('${item.rid}')">✕</button></td>
     </tr>`;
@@ -8314,15 +8312,7 @@ function removeTicket(idx){
   ventaRows.splice(idx,1);
   recalcVentas();
   renderTicketsDelDia();
-  if(ventaRows.length>0){
-    autoSavePendingJornada();
-  } else {
-    // Sin ventas: limpiar draft completamente
-    try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
-    if(currentUser&&currentUser.email!=='local'){
-      _sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});
-    }
-  }
+  autoSavePendingJornada();
   showToast('🔄 Venta eliminada — stock repuesto');
 }
 
@@ -8402,9 +8392,8 @@ function recalcVentas(){
 function abrirCierreModal(){
   if(!ventaRows.length){showToast('❌ No hay ventas para guardar');return;}
   // Validar efectivo real obligatorio y mayor a 0
-  const ccFinalRaw=document.getElementById('v_cc_final')?.value;
-  if(ccFinalRaw===''||ccFinalRaw===null||ccFinalRaw===undefined){showToast('⚠️ Ingresá la caja chica final');document.getElementById('v_cc_final')?.focus();return;}
-  const ccFinalVal=parseFloat(ccFinalRaw);
+  const ccFinalVal=parseFloat(document.getElementById('v_cc_final')?.value);
+  if(isNaN(ccFinalVal)){showToast('⚠️ Ingresá la caja chica final');document.getElementById('v_cc_final')?.focus();return;}
   const efecRealVal=parseFloat(document.getElementById('v_efec_real')?.value);
   if(!efecRealVal||efecRealVal<=0){
     showToast('❌ El efectivo real en caja es obligatorio y debe ser mayor a $0');
@@ -9259,7 +9248,7 @@ function selectProduct(id){
   setV('f_title',p.title);setV('f_qty',p.qty_num);setV('f_stock',getStock(id));
   const btnArch=document.getElementById('btn-archivar');
   if(btnArch)btnArch.textContent=p.archivado?'📦 Restaurar':'📦 Archivar';
-  setV('f_cost',parseMoney(p.cost));setV('f_sale1',parseMoney(p.sale1));setV('f_s2l',p.sale2_label);
+  setV('f_cost',parseMoney(p.cost));setV('f_sale1',parseMoney(p.sale1));setV('f_s2l',p.sale2_label);setV('f_oferta',parseMoney(p.oferta||'0'));
   // Proveedor: tipo primero, luego lista filtrada, luego selección exacta
   const provTipoEl=document.getElementById('f_prov_tipo');
   if(provTipoEl) provTipoEl.value=p.provTipo||'';
@@ -9511,6 +9500,8 @@ function saveProduct(){
   p.tag=document.getElementById('f_tag')?.value||p.tag;
   p.qty_num=qty;p.qty_display=qty+' unidades';
   p.cost=fmtM(cost);p.sale1=fmtM(sale1);p.sale2=fmtM(sale2);
+  const ofertaEdit=parseFloat(document.getElementById('ev_oferta')?.value)||parseFloat(document.getElementById('f_oferta')?.value)||0;
+  p.oferta=ofertaEdit>0?fmtM(ofertaEdit):'$0';
   p.sale2_label=document.getElementById('f_s2l')?.value||p.sale2_label;p.total_cost=fmtM(cost*qty);
   const ns=parseInt(document.getElementById('f_stock')?.value);if(!isNaN(ns))stockMap[p.id]=Math.max(0,ns);
   if(editImgs.length>0){p.img1=editImgs[0].src;p.img2=editImgs.length>1?editImgs[1].src:'';p.imgs=editImgs.map(x=>x.src);}
@@ -9624,6 +9615,7 @@ function saveNewProduct(){
     provTipo:document.getElementById('np_prov_tipo')?.value||'',cost:fmtM(cost),
     sale1:fmtM(sale1),sale1_label:'x1',sale2:fmtM(sale2),
     sale2_label:document.getElementById('np_s2l')?.value||'x2',
+    oferta:ofertaVal>0?fmtM(ofertaVal):'$0',
     qty_num:qty,qty_display:qty+' unidades',total_cost:fmtM(cost*qty),single:true,img1,img2,imgs};
   newP.barcode=generateBarcode(newP.id);
   products.push(newP);stockMap[newP.id]=fs;
@@ -11414,6 +11406,7 @@ function setSaldoInicial(){
 
 
 // ══ COSTOS FIJOS ═════════════════════════════════════════════════
+let categorias=['Camperas', 'Camperitas', 'Pantalones', 'Remeras', 'Buzos', 'Sweaters', 'Térmicas', 'Calzas', 'Shorts', 'Conjuntos', 'Accesorios', 'General'];  // rubros editables
 let costosFijos=[];       // configuración permanente
 let obligacionesMes=[];   // generadas cada mes
 
@@ -12168,7 +12161,7 @@ function updateDashboardExtra(){
   const dashAlerts=document.getElementById('dash-alerts');
   if(dashAlerts){dashAlerts.innerHTML=vencenHoy.length?vencenHoy.map(o=>'<div style="background:rgba(230,57,70,.1);border:1px solid rgba(230,57,70,.3);border-radius:7px;padding:.38rem .7rem;font-size:.75rem">⚠️ Vence hoy: <strong>'+o.nombre+'</strong> — '+fmtM(o.monto)+'</div>').join(''):'';}
 }
-function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();}
+function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();populateCatSelects();}
 
 </script>
 </div><!-- end app -->
@@ -14315,6 +14308,16 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
         <button class="nbtn" style="background:var(--red);color:#fff" onclick="limpiarJornadasViejas()">🗑️ Eliminar todas las jornadas</button>
       </div>
 
+      <!-- Categorías -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.8rem;font-size:1rem">🏷️ Categorías de productos</h3>
+        <div id="cfg-cats-list" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.8rem"></div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input type="text" id="cfg-nueva-cat" placeholder="Nueva categoría..." style="flex:1;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem" onkeydown="if(event.key==='Enter')agregarCategoria()">
+          <button class="nbtn green" onclick="agregarCategoria()">+ Agregar</button>
+        </div>
+      </div>
+
       <!-- Usuarios -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
         <h3 style="margin-bottom:.8rem;font-size:1rem">👥 Usuarios del sistema</h3>
@@ -14334,6 +14337,7 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
 document.addEventListener('DOMContentLoaded', async function(){
   // Inicializar datos locales base
   initData();
+  populateCatSelects();
   const vf=document.getElementById('v_fecha');if(vf)vf.value=todayStr();
 
   // Verificar sesión activa de Supabase con timeout
@@ -14454,7 +14458,7 @@ async function cargarDesdeExcel(){
       const newP={id:newId,tag:rubro,title:titulo,supplier:proveedor,cost:'$'+costo.toLocaleString('es-AR'),sale1:'$'+precio.toLocaleString('es-AR'),sale1_label:'x1',sale2:'$'+oferta.toLocaleString('es-AR'),sale2_label:'x2',qty_num:cantidad,qty_display:cantidad+' unidades',total_cost:'$'+(costo*cantidad).toLocaleString('es-AR'),single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:generateBarcode(newId),provTipo:''};
       products.push(newP);stockMap[newId]=cantidad;extraMap[newId]={date:'',obs:''};
       try{
-        await _sbFetch('POST','products?on_conflict=id',{id:newId,tag:rubro,title:titulo,supplier:proveedor,cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,sale2_label:'x2',qty_num:cantidad,qty_display:newP.qty_display,total_cost:newP.total_cost,single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:newP.barcode,provTipo:''});
+        await _sbFetch('POST','products?on_conflict=id',{id:newId,tag:rubro,title:titulo,supplier:proveedor,cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,sale2_label:'x2',oferta:newP.oferta||'$0',qty_num:cantidad,qty_display:newP.qty_display,total_cost:newP.total_cost,single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:newP.barcode,provTipo:''});
         await _sbFetch('POST','stock?on_conflict=product_id',{product_id:newId,qty:cantidad});
         added++;
       }catch(err){errors++;console.warn('Error:',err);}
@@ -14494,6 +14498,15 @@ async function cargarDesdeExcel(){
 function initConfigPage(){
   const obj=document.getElementById('cfg-objetivo');
   if(obj) obj.value=objetivoDiario||1000000;
+  // Render categories
+  const catList=document.getElementById('cfg-cats-list');
+  if(catList){
+    catList.innerHTML=categorias.map((c,i)=>`
+      <span style="display:inline-flex;align-items:center;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.2rem .5rem;font-size:.8rem">
+        ${c}
+        <button onclick="eliminarCategoria(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:0 2px" title="Eliminar">✕</button>
+      </span>`).join('');
+  }
   const pct=document.getElementById('cfg-comision-pct');
   if(pct) pct.value=parseFloat(localStorage.getItem('mv6_comision_pct'))||6;
 }
@@ -14554,6 +14567,42 @@ function showImgModal(src, title){
   document.getElementById('imgModalImg').src = src;
   document.getElementById('imgModalTitle').textContent = title||'';
   modal.style.display = 'flex';
+}
+
+function populateCatSelects(){
+  const opts=categorias.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const optsAll='<option value="">Todos</option>'+opts;
+  ['stock-tag-filter'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){const v=el.value;el.innerHTML=optsAll;el.value=v;}
+  });
+  ['f_tag','np_tag'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){const v=el.value;el.innerHTML=opts;el.value=v||categorias[0];}
+  });
+}
+function saveCategorias(){
+  localStorage.setItem('mv6_categorias',JSON.stringify(categorias));
+  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',categorias,updated_at:new Date().toISOString()}]).catch(()=>{});
+  populateCatSelects();
+  showToast('✅ Categorías guardadas');
+}
+
+function agregarCategoria(){
+  const input=document.getElementById('cfg-nueva-cat');
+  const val=(input?.value||'').trim();
+  if(!val){showToast('❌ Escribí el nombre de la categoría');return;}
+  if(categorias.includes(val)){showToast('⚠️ Ya existe esa categoría');return;}
+  categorias.push(val);
+  saveCategorias();
+  if(input)input.value='';
+  initConfigPage();
+}
+function eliminarCategoria(idx){
+  if(!confirm('¿Eliminar categoría "'+categorias[idx]+'"?'))return;
+  categorias.splice(idx,1);
+  saveCategorias();
+  initConfigPage();
 }
 </script>
 </body></html>
