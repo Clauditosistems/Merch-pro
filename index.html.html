@@ -12206,8 +12206,6 @@ function updateDashboardExtra(){
 }
 function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();}
 
-</script>
-
 </div><!-- end app -->
 
 <!-- ═══ PAGE: MÉTRICAS ═══ -->
@@ -14458,7 +14456,6 @@ async function limpiarJornadasViejas(){
 }
 
 // ── CONFIGURACIÓN ─────────────────────────────────────────────────
-<script>
 function guardarObjetivo(){
   const val=parseFloat(document.getElementById('cfg-objetivo')?.value)||0;
   if(!val){showToast('❌ Ingresá un valor válido');return;}
