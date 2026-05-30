@@ -4444,7 +4444,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica inicio ($)</label>
-        <input type="number" id="v_cc_inicio" value="30000" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
+        <input type="number" id="v_cc_inicio" value="30000" oninput="recalcVentas()" placeholder="$0" style="padding:.32rem .5rem;font-size:.82rem">
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica final ($)</label>
@@ -4476,7 +4476,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <span style="font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600">Ventas del día</span>
           <div style="display:flex;align-items:center;gap:.4rem">
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;color:var(--text)" id="obj-ventas-txt">$0</span>
-            <button onclick="editarObjetivo()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:.1rem .3rem;font-size:.6rem;cursor:pointer" title="Editar meta">✏️</button>
+            <button class="admin-only" onclick="editarObjetivo()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:.1rem .3rem;font-size:.6rem;cursor:pointer" title="Editar meta">✏️</button>
           </div>
         </div>
         <div id="obj-mensaje" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 0.15rem; transition: color 0.4s; color: rgb(224, 80, 80);">⚡ Arrancan las ventas — ¡a empujar! Faltan $553.003</div>
@@ -8170,12 +8170,20 @@ function renderCartTable(){
       <td><input type="number" min="0" value="${item.price}" style="width:80px"
         oninput="cartItems.find(x=>x.rid==='${item.rid}').price=+this.value||0;recalcCarrito()"
         onblur="renderCartTable()"></td>
-      <td><input type="number" min="0" max="100" value="${disc}" style="width:58px" placeholder="0" title="Desc. %"
-        oninput="cartItems.find(x=>x.rid==='${item.rid}').discPct=Math.min(100,+this.value||0);recalcCarrito()"
-        onblur="renderCartTable()">%</td>
-      <td style="font-weight:700;color:${discAmt>0?'var(--orange)':'var(--green)'};min-width:80px">${fmtM(sub)}${discAmt>0?'<br><span style="font-size:.65rem;color:var(--accent)">-'+fmtM(discAmt)+'</span>':''}</td>
-      <td><input type="text" value="${item.obs||''}" placeholder="${isV?'🕰️ Detalle vintage':'Obs...'}"
-        oninput="cartItems.find(x=>x.rid==='${item.rid}').obs=this.value"></td>
+      <td>
+        <div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">
+          <input type="number" min="0" max="100" value="${disc}" style="width:46px" placeholder="%" title="Desc. %"
+            oninput="cartItems.find(x=>x.rid==='${item.rid}').discPct=Math.min(100,+this.value||0);cartItems.find(x=>x.rid==='${item.rid}').discPesos=0;recalcCarrito()"
+            onblur="renderCartTable()">%
+          <input type="number" min="0" value="${item.discPesos||0}" style="width:72px" placeholder="$desc" title="Desc. en $"
+            oninput="cartItems.find(x=>x.rid==='${item.rid}').discPesos=Math.max(0,+this.value||0);cartItems.find(x=>x.rid==='${item.rid}').discPct=0;recalcCarrito()"
+            onblur="renderCartTable()">
+        </div>
+      </td>
+      <td style="font-weight:700;color:${discAmt>0||item.discPesos>0?'var(--orange)':'var(--green)'};min-width:80px">${fmtM(sub)}${(discAmt>0||item.discPesos>0)?'<br><span style="font-size:.65rem;color:var(--accent)">-'+fmtM(discAmt+(item.discPesos||0))+'</span>':''}</td>
+      <td><input type="text" value="${item.obs||''}" placeholder="${isV?'🕰️ Detalle vintage':'⚠️ Obs. obligatoria'}" 
+        style="${(discAmt>0||(item.discPesos||0)>0)&&!item.obs?'border-color:var(--red);background:rgba(230,57,70,.07)':''}"
+        oninput="cartItems.find(x=>x.rid==='${item.rid}').obs=this.value;renderCartTable()"></td>
       <td><button class="del-btn" onclick="removeCartItem('${item.rid}')">✕</button></td>
     </tr>`;
   }).join('');
@@ -8205,6 +8213,9 @@ function recalcCarrito(){
   set('cart-prendas',prendas);
 }
 function confirmarVenta(){
+  // Validar obs obligatoria cuando hay descuento en algún item
+  const itemsConDescSinObs=cartItems.filter(it=>(it.discPct>0||(it.discPesos||0)>0)&&!it.obs);
+  if(itemsConDescSinObs.length>0){showToast('❌ Completá la observación del producto con descuento');renderCartTable();return;}
   const cliente=(document.getElementById('cart_cliente')?.value||'').trim()||'Cliente';
   const ticketVendedor=(document.getElementById('cart_vendedor')?.value||'').trim()||'Sin especificar';
   if(!cartItems.length){showToast('❌ Agregá al menos una prenda');return;}
@@ -8298,6 +8309,7 @@ function removeTicket(idx){
   ventaRows.splice(idx,1);
   recalcVentas();
   renderTicketsDelDia();
+  autoSavePendingJornada();
   showToast('🔄 Venta eliminada — stock repuesto');
 }
 
@@ -8377,6 +8389,8 @@ function recalcVentas(){
 function abrirCierreModal(){
   if(!ventaRows.length){showToast('❌ No hay ventas para guardar');return;}
   // Validar efectivo real obligatorio y mayor a 0
+  const ccFinalVal=parseFloat(document.getElementById('v_cc_final')?.value);
+  if(isNaN(ccFinalVal)){showToast('⚠️ Ingresá la caja chica final');document.getElementById('v_cc_final')?.focus();return;}
   const efecRealVal=parseFloat(document.getElementById('v_efec_real')?.value);
   if(!efecRealVal||efecRealVal<=0){
     showToast('❌ El efectivo real en caja es obligatorio y debe ser mayor a $0');
@@ -14511,5 +14525,21 @@ async function restorePendingJornada(){
   }catch(e){localStorage.removeItem(PENDING_KEY);}
 }
 
+
+function showImgModal(src, title){
+  if(!src||src.trim()==='') return;
+  let modal = document.getElementById('imgModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'imgModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+    modal.innerHTML = '<div style="text-align:center;max-width:90vw;max-height:90vh"><img id="imgModalImg" style="max-width:88vw;max-height:78vh;border-radius:12px;object-fit:contain"><div id="imgModalTitle" style="color:#fff;margin-top:10px;font-size:.95rem;font-weight:600"></div><div style="color:#aaa;font-size:.75rem;margin-top:4px">Tocá para cerrar</div></div>';
+    modal.onclick = () => modal.style.display='none';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('imgModalImg').src = src;
+  document.getElementById('imgModalTitle').textContent = title||'';
+  modal.style.display = 'flex';
+}
 </script>
 </body></html>
