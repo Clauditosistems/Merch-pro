@@ -4437,7 +4437,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
   <!-- DATOS DEL DÍA COMPACTO -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.65rem 1rem;margin-bottom:.75rem">
-    <div class="sticky-filters" style="display:flex;flex-wrap:wrap;gap:.55rem;align-items:flex-end">
+    <div style="display:flex;flex-wrap:wrap;gap:.55rem;align-items:flex-end">
       <div class="vfield" style="min-width:130px;flex:1">
         <label style="font-size:.65rem">Fecha</label>
         <input type="date" id="v_fecha" style="padding:.32rem .5rem;font-size:.82rem">
@@ -5717,7 +5717,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <div class="cp-item"><span class="cpl">Gan. estimada</span><span class="cpv" id="cp_earned">$0</span></div>
         </div>
         <div class="form-actions">
-          <button class="btn btn-primary" onclick="saveProductEdit()">💾 Guardar</button>
+          <button class="btn btn-primary" onclick="saveProduct()">💾 Guardar</button>
           <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancelar</button>
           <button class="btn btn-danger" onclick="resetProduct()">↺ Restablecer</button>
         </div>
@@ -5778,7 +5778,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <button class="btn" onclick="archivarProducto(editingId)" id="btn-archivar" style="font-size:.78rem;background:rgba(140,123,107,.15);color:var(--muted);border:1px solid var(--border)">📦 Archivar</button>
           </div>
           <div style="display:flex;gap:.5rem">
-            <button class="btn btn-primary" onclick="saveProductEdit()">💾 Guardar</button>
+            <button class="btn btn-primary" onclick="saveProduct()">💾 Guardar</button>
             <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancelar</button>
           </div>
         </div>
@@ -7353,8 +7353,8 @@ async function _refreshTokenIfNeeded(){
     if(!_ls)return;
     const _p=JSON.parse(_ls);
     const exp=_p?.expires_at||0;
-    // Refrescar si vence en menos de 30 minutos
-    if(exp*1000 - Date.now() < 1800000){
+    // Si vence en menos de 5 minutos, refrescar
+    if(exp*1000 - Date.now() < 300000){
       const refreshToken=_p?.refresh_token;
       if(!refreshToken)return;
       const r=await fetch(supa.supabaseUrl+'/auth/v1/token?grant_type=refresh_token',{
@@ -7521,34 +7521,12 @@ async function loadFromSupabase(){
     const adjData = await sbFetch('stock_adjustments?select=*&order=created_at.desc');
     if(adjData&&adjData.length>0) window.stockAdjustments=adjData;
 
-    // Load caja ivo
-    try{
-      const cajaIvoData=await sbFetch('caja_ivo?select=*&limit=1');
-      if(cajaIvoData&&cajaIvoData[0]){
-        cajaIvoMovimientos=cajaIvoData[0].movimientos||[];
-        cajaIvoSaldoInicial=cajaIvoData[0].saldo_inicial||0;
-        localStorage.setItem('mv6_cajaivo',JSON.stringify({movimientos:cajaIvoMovimientos,saldoInicial:cajaIvoSaldoInicial}));
-      }
-    }catch(e){}
-
-    // Load costos fijos
-    try{
-      const costosFijosData=await sbFetch('costos_fijos?select=*&limit=1');
-      if(costosFijosData&&costosFijosData[0]){
-        costosFijos=costosFijosData[0].items||[];
-        localStorage.setItem('mv6_costos_fijos',JSON.stringify(costosFijos));
-      }
-    }catch(e){}
-
-    // Load configuracion (objetivo, obligaciones)
-    try{
-      const cfgData=await sbFetch('configuracion?select=*&limit=1');
-      if(cfgData&&cfgData[0]){
-        if(cfgData[0].objetivo) objetivoDiario=cfgData[0].objetivo;
-        if(cfgData[0].obligaciones) obligacionesMes=cfgData[0].obligaciones;
-      }
-    }catch(e){}
-
+    // Load caja ivo from Supabase
+    try{const civData=await sbFetch('caja_ivo?select=*&limit=1');if(civData&&civData[0]){cajaIvoMovimientos=civData[0].movimientos||[];cajaIvoSaldoInicial=civData[0].saldo_inicial||0;}}catch(e){}
+    // Load costos fijos from Supabase
+    try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}}catch(e){}
+    // Load configuracion from Supabase
+    try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;}}catch(e){}
     showToast('✅ Datos cargados');
     renderAll();
     restorePendingJornada();
@@ -7965,7 +7943,7 @@ function renderGrid(){
       <div class="card-imgs ${imgCls}" onclick="openProductDetail(${p.id})" style="cursor:pointer"><img src="${allImgs[0]||p.img1}" alt="">${img2}</div>
       <div class="card-body">
         <div class="tag">${p.tag}</div><div class="card-title">${p.title}</div>
-        ${isAdminMode?`<div class="card-supplier">${p.supplier}${p.provTipo?` <span style="font-size:.6rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.08rem .3rem;margin-left:.3rem">${p.provTipo}</span>`:''}</div>`:''}
+        ${isAdminMode?`${isAdminMode?`<div class="card-supplier">${p.supplier}${p.provTipo?` <span style="font-size:.6rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.08rem .3rem;margin-left:.3rem">${p.provTipo}</span>`:''}</div>`:''}`:''}
         <div class="prices">
           ${isAdminMode?`<div class="price-row admin-only"><span class="price-label">Costo</span><span class="price-value cost">${p.cost}</span></div>`:''}
           <div class="price-row"><span class="price-label">Venta ${p.sale1_label}</span><span class="price-value sale-1" style="color:#000">${p.sale1}${isAdminMode?` <span style="font-size:.63rem;color:${pc1}">(+${fmtM(c.up1)})</span>`:''}</span></div>
@@ -8320,7 +8298,6 @@ function removeTicket(idx){
   ventaRows.splice(idx,1);
   recalcVentas();
   renderTicketsDelDia();
-  autoSavePendingJornada();
   showToast('🔄 Venta eliminada — stock repuesto');
 }
 
@@ -8552,10 +8529,7 @@ function confirmarGuardar(){
 
 function limpiarJornada(){
   try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
-  // Delete draft from Supabase
-  if(currentUser && currentUser.email !== 'local'){
-    _sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});
-  }
+  if(currentUser&&currentUser.email!=='local'){_sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});}
   ventaRows=[];gastoRows=[];
   renderTicketsDelDia();renderGastosTable();
   const setV=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
@@ -8689,14 +8663,8 @@ function guardarNotaJornada(jid){
   const j=ventasHistory.find(x=>x.id===jid);
   if(!j)return;
   j.notaInterna=input.value;
-  j.edit_log = j.editLog || [];
-  j.edit_log.push({by: currentUser?.email||'admin', at: new Date().toISOString(), action: 'nota'});
   saveAll();
-  // Save note to Supabase
-  _sbFetch('POST','jornadas?on_conflict=id',{
-    id:jid, obs_dia: j.obsDia||'',
-    edit_log: j.edit_log, ventas: j.ventas||[], gastos: j.gastos||[]
-  }).catch(e=>console.warn('Nota sync error:',e.message));
+  _sbFetch('POST','jornadas?on_conflict=id',{id:jid,obs_dia:j.obsDia||'',edit_log:j.editLog||[],ventas:j.ventas||[],gastos:j.gastos||[]}).catch(e=>console.warn('Nota sync:',e.message));
   showToast('✅ Nota guardada');
 }
 function toggleJornada(jid){
@@ -8762,14 +8730,8 @@ function confirmarAnular(){
   j.anulada=true;j.anulacion={when:nowStr(),motivo};
   cajaHistory=cajaHistory.filter(c=>c.jornadaId!==anularJornadaId);
   saveAll();
-  // Sync anulacion to Supabase
   const ja=ventasHistory.find(x=>x.id===anularJornadaId);
-  if(ja){
-    _sbFetch('POST','jornadas?on_conflict=id',{
-      id:anularJornadaId, anulada:true,
-      edit_log:ja.editLog||[], ventas:ja.ventas||[], gastos:ja.gastos||[]
-    }).catch(e=>console.warn('Anular sync error:',e.message));
-  }
+  if(ja){_sbFetch('POST','jornadas?on_conflict=id',{id:anularJornadaId,anulada:true,edit_log:ja.editLog||[],ventas:ja.ventas||[],gastos:ja.gastos||[]}).catch(e=>console.warn('Anular sync:',e.message));}
   renderAll();renderHistVentas();closeAnular();
   showToast('🚫 Jornada anulada — stock repuesto');
 }
@@ -8848,6 +8810,12 @@ function recalcEditVenta(){
   set('ev_total',fmtM(total));
 }
 function closeEditVenta(){document.getElementById('editVentaModal').classList.remove('open');document.body.style.overflow='';editVentaJornadaId=null;editVentaRowRid=null;}
+function recalcEditVenta(){
+  const qty=parseInt(document.getElementById('ev_qty').value)||0;
+  const price=parseFloat(document.getElementById('ev_price').value)||0;
+  const desc=parseFloat(document.getElementById('ev_desc').value)||0;
+  document.getElementById('ev_total').value=fmtM(Math.max(0,price-desc));
+}
 function confirmarEditVenta(){
   const motivo=(document.getElementById('ev_motivo')?.value||'').trim();
   if(!motivo){showToast('❌ Ingresá el motivo de edición');return;}
@@ -9502,7 +9470,7 @@ function updateCalcPreview(){
   set('cp_sold',sold+' u.');
   set('cp_earned',fmtM(p1*sold));
 }
-function saveProductEdit(){
+function saveProduct(){
   if(editingId===null)return;const p=products.find(x=>x.id===editingId);
   const cost=parseFloat(document.getElementById('f_cost')?.value)||parseMoney(p.cost);
   const sale1=parseFloat(document.getElementById('f_sale1')?.value)||parseMoney(p.sale1);
@@ -9633,11 +9601,9 @@ function saveNewProduct(){
   products.push(newP);stockMap[newP.id]=fs;
   extraMap[newP.id]={date:document.getElementById('np_date')?.value||'',obs:document.getElementById('np_obs')?.value||''};
   if(qty>0){
-    const ph={id:Date.now(),productId:newP.id,productTitle:title,
-      date:document.getElementById('np_date')?.value||todayStr(),qty,cost,sale1,sale2,
-      note:'Alta inicial',pago:'efectivo'};
+    const ph={id:Date.now(),productId:newP.id,productTitle:title,date:document.getElementById('np_date')?.value||todayStr(),qty,cost,sale1,sale2,note:'Alta inicial',pago:'efectivo'};
     purchaseHistory.push(ph);
-    savePurchase(ph).catch(e=>console.warn('savePurchase error:',e));
+    savePurchase(ph).catch(e=>console.warn('savePurchase:',e));
   }
   saveAll();
   // Subir a Supabase con imágenes a Storage
@@ -9681,7 +9647,7 @@ function confirmPurchase(){
   const note=document.getElementById('np2_note')?.value.trim()||'';
   const pago=document.getElementById('np2_pago')?.value||'efectivo';const ph2={id:Date.now(),productId:purchasingId,productTitle:p.title,date,qty,cost,sale1,sale2,note,pago};
   purchaseHistory.push(ph2);
-  savePurchase(ph2).catch(e=>console.warn('savePurchase error:',e));
+  savePurchase(ph2).catch(e=>console.warn('savePurchase:',e));
   if(Math.abs(cost-parseMoney(p.cost))>1)p.cost=fmtM(cost);
   if(Math.abs(sale1-parseMoney(p.sale1))>1)p.sale1=fmtM(sale1);
   if(Math.abs(sale2-parseMoney(p.sale2))>1)p.sale2=fmtM(sale2);
@@ -10912,23 +10878,14 @@ function confirmarPagoProveedor(){
   p.movimientos.push({tipo:'pago',importe,medio,fecha,detalle:nota||`Pago ${medio}`});
   p.saldo=Math.max(0,(p.saldo||0)-importe);
   saveProveedores();
-  // Descontar de Caja Ivo si el medio es efectivo o transferencia
   if(confirm(`¿Descontar ${fmtM(importe)} de Caja Ivo también?\nMedio: ${medio}`)){
-    if(!cajaIvoMovimientos) cajaIvoMovimientos=[];
-    cajaIvoMovimientos.push({
-      id:'civ'+Date.now(),
-      fecha,
-      tipo:'egreso',
-      importe:-importe,
-      detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,
-      medio
-    });
+    if(!cajaIvoMovimientos)cajaIvoMovimientos=[];
+    cajaIvoMovimientos.push({id:'civ'+Date.now(),fecha,tipo:'egreso',importe:-importe,detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,medio});
     cajaIvoSaldoInicial=(cajaIvoSaldoInicial||0)-importe;
     saveCajaIvo();
-    if(typeof renderCajaPage==='function') renderCajaPage();
+    if(typeof renderCajaPage==='function')renderCajaPage();
   }
-  closePagoProveedor();
-  openDetalleProveedor(currentProveedorId);
+  closePagoProveedor();openDetalleProveedor(currentProveedorId);
   showToast('✅ Pago registrado — Saldo: '+fmtM(p.saldo));
 }
 
@@ -11150,19 +11107,8 @@ function initCajaIvo(){
 }
 
 function saveCajaIvo(){
-  try{
-    localStorage.setItem('mv6_cajaivo',JSON.stringify({
-      movimientos:cajaIvoMovimientos,
-      saldoInicial:cajaIvoSaldoInicial
-    }));
-  }catch(e){}
-  // Sync a Supabase
-  _sbFetch('POST','caja_ivo?on_conflict=id',[{
-    id:1,
-    movimientos:cajaIvoMovimientos||[],
-    saldo_inicial:cajaIvoSaldoInicial||0,
-    updated_at:new Date().toISOString()
-  }]).catch(e=>console.warn('CajaIvo sync error:',e.message));
+  try{localStorage.setItem('mv6_cajaivo',JSON.stringify({movimientos:cajaIvoMovimientos,saldoInicial:cajaIvoSaldoInicial}));}catch(e){}
+  _sbFetch('POST','caja_ivo?on_conflict=id',[{id:1,movimientos:cajaIvoMovimientos||[],saldo_inicial:cajaIvoSaldoInicial||0,updated_at:new Date().toISOString()}]).catch(e=>console.warn('CajaIvo sync:',e.message));
 }
 
 function getCajaIvoSaldo(){
@@ -11452,6 +11398,8 @@ function initCostosFijos(){
 function saveCostosFijos(){
   localStorage.setItem('mv6_costos_fijos',JSON.stringify(costosFijos));
   localStorage.setItem('mv6_obligaciones',JSON.stringify(obligacionesMes));
+  _sbFetch('POST','costos_fijos?on_conflict=id',[{id:1,items:costosFijos||[],updated_at:new Date().toISOString()}]).catch(e=>console.warn('CostosFijos sync:',e.message));
+  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',obligaciones:obligacionesMes||[],updated_at:new Date().toISOString()}]).catch(e=>console.warn('Obligaciones sync:',e.message));
 }
 
 function generarObligacionesMesActual(){
@@ -11815,7 +11763,7 @@ function renderListaCompras(tipoProv){
         <td style="padding:.4rem .6rem;font-size:.75rem">${p.supplier||'—'}</td>
         <td style="padding:.4rem .6rem;font-size:.72rem;color:var(--muted)">${prov.dir||'—'}${prov.tel?`<br><span style="color:var(--blue)">📞 ${prov.tel}</span>`:''}</td>
         <td style="padding:.4rem .6rem;text-align:center;font-size:.78rem">${p.cost||'—'}</td>
-        <td style="padding:.4rem .6rem;text-align:center"><input type="number" min="0" value="${aReponer}" style="width:55px;padding:.2rem .3rem;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-align:center;font-size:.82rem" title="A reponer"></td>
+        <td style="padding:.4rem .6rem;text-align:center"><input type="number" min="0" value="${aReponer}" style="width:55px;padding:.2rem .3rem;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-align:center;font-size:.82rem"></td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
 }
@@ -11824,31 +11772,21 @@ function imprimirListaCompras(tipoProv){
   const productos=getListaCompras(tipoProv);
   if(!productos.length){showToast('Sin productos para reponer');return;}
   const fecha=new Date().toLocaleDateString('es-AR');
-  const rows=productos.map((p,i)=>{
-    const st=getStock(p.id);
-    const prov=proveedores.find(pr=>pr.nombre===p.supplier)||{};
-    const aReponer=Math.max(0,(p.qty_num||0)-st);
-    return`<tr><td>${i+1}</td><td><strong>${p.title}</strong></td>
-    <td style="text-align:center;color:${st===0?'red':'orange'}">${st}</td>
-    <td style="text-align:center">${p.qty_num||0}</td>
-    <td>${p.supplier||'—'}</td>
-    <td>${prov.dir||'—'}</td>
-    <td>${prov.tel||'—'}</td>
-    <td>${p.cost||'—'}</td>
-    <td style="text-align:center;font-weight:bold">${aReponer}</td></tr>`;
-  }).join('');
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Compras</title>
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Compras ${tipoProv}</title>
   <style>body{font-family:Arial,sans-serif;padding:20px}h1{font-size:18px}table{width:100%;border-collapse:collapse}
-  th,td{border:1px solid #ccc;padding:7px;font-size:12px}th{background:#f0f0f0}
+  th,td{border:1px solid #ccc;padding:8px;font-size:13px}th{background:#f0f0f0;font-weight:bold}
   @media print{@page{margin:10mm}}</style></head>
-  <body><h1>Lista de Compras${tipoProv?' — '+tipoProv:''} — ${fecha}</h1>
-  <table><thead><tr><th>#</th><th>Producto</th><th>Stock</th><th>Orig.</th><th>Proveedor</th><th>Dirección</th><th>Tel.</th><th>Costo</th><th>A reponer</th></tr></thead>
-  <tbody>${rows}</tbody></table>
-  <p style="margin-top:10px;font-size:11px">Total: ${productos.length} productos</p>
+  <body><h1>📋 Lista de Compras — ${tipoProv} — ${fecha}</h1>
+  <table><thead><tr><th>#</th><th>Producto</th><th>Stock actual</th><th>Stock original</th><th>Proveedor</th><th>Costo unit.</th></tr></thead>
+  <tbody>${productos.map((p,i)=>`<tr><td>${i+1}</td><td><strong>${p.title}</strong></td><td style="text-align:center;color:${getStock(p.id)===0?'red':'orange'}">${getStock(p.id)}</td><td style="text-align:center">${p.qty_num}</td><td>${p.supplier||'—'}</td><td>${p.cost}</td></tr>`).join('')}</tbody></table>
+  <p style="margin-top:20px;font-size:11px;color:#888">Generado por Merch Pro · ${fecha}</p>
+  <scr'+'ipt>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500)}</scr'+'ipt>
   </body></html>`;
-  const w=window.open('','_blank');w.document.write(html);w.document.close();
+  const w=window.open('','_blank','width=800,height=600');
+  if(w){w.document.write(html);w.document.close();}
 }
 
+// ══ CIERRE MENSUAL ════════════════════════════════════════════════
 function renderHistorialAjustes(){
   const el=document.getElementById('historialAjustesContent');if(!el)return;
   // Recargar desde localStorage
@@ -12066,8 +12004,7 @@ function exportarCierreMensualPDF(year,month){
   .card .lbl{font-size:11px;color:#666;text-transform:uppercase;margin-bottom:4px}
   .card .val{font-size:18px;font-weight:bold}
   .green{color:#2e7d32}.red{color:#c62828}.blue{color:#1565c0}.yellow{color:#f57f17}
-  @media print{@page{margin:12mm}}
-</style></head>
+  @media print{@page{margin:12mm}}</style></head>
   <body><h1>📊 Cierre Mensual — ${meses[month]} ${year}</h1>
   <p style="color:#666;font-size:13px">${data.jornadas} días trabajados · Generado por Merch Pro</p>
   <div class="grid">
@@ -12129,7 +12066,6 @@ function editarObjetivo(){
   if(isNaN(n)||n<=0){showToast('❌ Valor inválido');return;}
   objetivoDiario=n;
   localStorage.setItem('mv6_objetivo',n);
-  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',objetivo:n,updated_at:new Date().toISOString()}]).catch(()=>{});
   updateObjetivo();
   showToast('✅ Objetivo actualizado: '+fmtM(n));
 }
@@ -12206,6 +12142,7 @@ function updateDashboardExtra(){
 }
 function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();}
 
+</script>
 </div><!-- end app -->
 
 <!-- ═══ PAGE: MÉTRICAS ═══ -->
@@ -12585,10 +12522,7 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
 
   <!-- Buscador -->
   <div style="margin-bottom:.85rem">
-    <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;margin-bottom:.5rem">
-      <input type="checkbox" id="provFiltroDeuda" onchange="renderProveedores()">
-      Solo proveedores con deuda
-    </label><br>
+    <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;margin-bottom:.5rem"><input type="checkbox" id="provFiltroDeuda" onchange="renderProveedores()"> Solo con deuda</label><br>
     <input type="text" id="provSearch" placeholder="🔍 Buscar proveedor por nombre o tipo..." oninput="renderProveedores()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:.48rem .8rem;font-size:.82rem;font-family:'DM Sans',sans-serif">
   </div>
 
@@ -14339,7 +14273,7 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
         <h3 style="margin-bottom:.4rem;font-size:1rem">📊 Carga masiva de productos desde Excel</h3>
         <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem">El archivo Excel debe tener columnas: <strong>titulo, costo, cantidad, rubro, precio_venta, precio_oferta, proveedor</strong></p>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
-          <input type="file" id="cfg-excel-file" accept=".csv,.xlsx,.xls" style="flex:1;min-width:200px;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem">
+          <input type="file" id="cfg-excel-file" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px;padding:.5rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem">
           <button class="nbtn green" onclick="cargarDesdeExcel()">📥 Cargar productos</button>
         </div>
         <div id="cfg-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"></div>
@@ -14367,6 +14301,7 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
   </section>
 
 <!-- end mainApp -->
+<script>
 // Arranque: verificar sesión Supabase
 document.addEventListener('DOMContentLoaded', async function(){
   // Inicializar datos locales base
@@ -14436,9 +14371,8 @@ document.addEventListener('DOMContentLoaded', async function(){
   // No hay sesión válida → mostrar login
   showLogin();
 });
-
-// Auto-refresh token cada 20 minutos para evitar JWT expired
-setInterval(()=>{ _refreshTokenIfNeeded().catch(()=>{}); }, 1200000);
+// Auto-refresh token cada 20 minutos
+setInterval(()=>{_refreshTokenIfNeeded().catch(()=>{});},1200000);
 
 // ── LIMPIAR JORNADAS VIEJAS (ejecutar una vez) ────────────────────
 async function limpiarJornadasViejas(){
@@ -14477,75 +14411,53 @@ async function cargarDesdeExcel(){
   const log=document.getElementById('cfg-excel-log');
   log.innerHTML='<span style="color:var(--accent)">Procesando...</span>';
   const isXlsx=file.name.endsWith('.xlsx')||file.name.endsWith('.xls');
-
-  const processRows = async (rows) => {
+  const processRows=async(rows)=>{
     let added=0,errors=0;
     for(const row of rows){
-      const titulo=row.titulo||row.title||row.nombre||row.producto||'';
-      const costo=parseFloat(String(row.costo||row.cost||'0').replace(/[.$,]/g,''))||0;
-      const cantidad=parseInt(row.cantidad||row.qty||row.stock||'0')||0;
-      const rubro=row.rubro||row.tag||row.categoria||'General';
-      const precio=parseFloat(String(row.precio_venta||row.precio||row.sale1||'0').replace(/[.$,]/g,''))||0;
-      const oferta=parseFloat(String(row.precio_oferta||row.sale2||'0').replace(/[.$,]/g,''))||0;
+      const titulo=row.titulo||row.title||row.nombre||'';
+      const costo=parseFloat(String(row.costo||'0').replace(/[.$,]/g,''))||0;
+      const cantidad=parseInt(row.cantidad||row.qty||'0')||0;
+      const rubro=row.rubro||row.tag||'General';
+      const precio=parseFloat(String(row.precio_venta||row.precio||'0').replace(/[.$,]/g,''))||0;
+      const oferta=parseFloat(String(row.precio_oferta||'0').replace(/[.$,]/g,''))||0;
       const proveedor=row.proveedor||row.supplier||'';
       if(!titulo){errors++;continue;}
       const newId=nextId++;
-      const newP={id:newId,tag:rubro,title:titulo,supplier:proveedor,
-        cost:'$'+costo.toLocaleString('es-AR'),sale1:'$'+precio.toLocaleString('es-AR'),sale1_label:'x1',
-        sale2:'$'+oferta.toLocaleString('es-AR'),sale2_label:'x2',qty_num:cantidad,
-        qty_display:cantidad+' unidades',total_cost:'$'+(costo*cantidad).toLocaleString('es-AR'),
-        single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:generateBarcode(newId),provTipo:''};
+      const newP={id:newId,tag:rubro,title:titulo,supplier:proveedor,cost:'$'+costo.toLocaleString('es-AR'),sale1:'$'+precio.toLocaleString('es-AR'),sale1_label:'x1',sale2:'$'+oferta.toLocaleString('es-AR'),sale2_label:'x2',qty_num:cantidad,qty_display:cantidad+' unidades',total_cost:'$'+(costo*cantidad).toLocaleString('es-AR'),single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:generateBarcode(newId),provTipo:''};
       products.push(newP);stockMap[newId]=cantidad;extraMap[newId]={date:'',obs:''};
       try{
-        await _sbFetch('POST','products?on_conflict=id',{id:newId,tag:rubro,title:titulo,supplier:proveedor,
-          cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,sale2_label:'x2',
-          qty_num:cantidad,qty_display:newP.qty_display,total_cost:newP.total_cost,
-          single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:newP.barcode,provTipo:''});
+        await _sbFetch('POST','products?on_conflict=id',{id:newId,tag:rubro,title:titulo,supplier:proveedor,cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,sale2_label:'x2',qty_num:cantidad,qty_display:newP.qty_display,total_cost:newP.total_cost,single:true,img1:'',img2:'',imgs:[],obs:'',active:true,barcode:newP.barcode,provTipo:''});
         await _sbFetch('POST','stock?on_conflict=product_id',{product_id:newId,qty:cantidad});
         added++;
       }catch(err){errors++;console.warn('Error:',err);}
     }
-    log.innerHTML=`<span style="color:var(--green)">✅ ${added} productos cargados</span>${errors>0?` <span style="color:var(--red)">· ${errors} errores</span>`:''}`;
-    saveAll();renderAll();showToast('✅ Carga masiva: '+added+' productos');
+    log.innerHTML=`<span style="color:var(--green)">✅ ${added} productos</span>${errors>0?` <span style="color:var(--red)">· ${errors} errores</span>`:''}`;
+    saveAll();renderAll();showToast('✅ '+added+' productos cargados');
   };
-
   const reader=new FileReader();
-  reader.onerror=()=>{ log.innerHTML='<span style="color:var(--red)">Error leyendo archivo</span>'; };
-
+  reader.onerror=()=>{log.innerHTML='<span style="color:var(--red)">Error leyendo archivo</span>';};
   if(isXlsx){
     reader.onload=async function(e){
       try{
         if(typeof XLSX==='undefined'){
-          log.innerHTML='<span style="color:var(--accent)">Cargando librería Excel...</span>';
-          await new Promise((res,rej)=>{
-            const s=document.createElement('script');
-            s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-            s.onload=res;s.onerror=rej;document.head.appendChild(s);
-          });
+          await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
         }
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const data=XLSX.utils.sheet_to_json(ws,{defval:''});
-        const rows=data.map(row=>{
-          const obj={};
-          Object.entries(row).forEach(([k,v])=>obj[k.toLowerCase().trim().replace(/ /g,'_')]=String(v||'').trim());
-          return obj;
-        });
+        const rows=data.map(row=>{const obj={};Object.entries(row).forEach(([k,v])=>obj[k.toLowerCase().trim().replace(/ /g,'_')]=String(v||'').trim());return obj;});
         await processRows(rows);
-      }catch(err){ log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>'; }
+      }catch(err){log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>';}
     };
     reader.readAsArrayBuffer(file);
-  } else {
+  }else{
     reader.onload=async function(e){
       try{
         const lines=e.target.result.split('\n').filter(l=>l.trim());
         const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/['"]/g,'').replace(/ /g,'_'));
-        const rows=lines.slice(1).map(line=>{
-          const vals=line.split(',').map(v=>v.trim().replace(/['"]/g,''));
-          const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return obj;
-        });
+        const rows=lines.slice(1).map(line=>{const vals=line.split(',').map(v=>v.trim().replace(/['"]/g,''));const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return obj;});
         await processRows(rows);
-      }catch(err){ log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>'; }
+      }catch(err){log.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>';}
     };
     reader.readAsText(file,'utf-8');
   }
@@ -14565,78 +14477,38 @@ const PENDING_KEY = 'mv6_pending_jornada';
 function autoSavePendingJornada(){
   if(!ventaRows.length) return;
   try{
-    const data = {
-      fecha: document.getElementById('v_fecha')?.value || todayStr(),
-      ventaRows: ventaRows,
-      gastoRows: gastoRows,
-      ccInicio: parseFloat(document.getElementById('v_cc_inicio')?.value)||0,
-      clientesHoy: clientesHoy,
-      savedAt: new Date().toISOString()
-    };
+    const data={fecha:document.getElementById('v_fecha')?.value||todayStr(),ventaRows,gastoRows,ccInicio:parseFloat(document.getElementById('v_cc_inicio')?.value)||0,clientesHoy,savedAt:new Date().toISOString()};
     localStorage.setItem(PENDING_KEY, JSON.stringify(data));
   }catch(e){}
-  // También guardar borrador en Supabase para recuperación multi-dispositivo
-  if(currentUser && currentUser.email !== 'local'){
-    _sbFetch('POST','jornadas?on_conflict=id',{
-      id:'draft_'+currentUser.id,
-      fecha: document.getElementById('v_fecha')?.value || todayStr(),
-      vendedor: currentUser.email,
-      obs_dia: document.getElementById('v_obs_dia')?.value||'',
-      anulada: false, edit_log: [],
-      ventas: ventaRows, gastos: gastoRows,
-      cc_inicio: parseFloat(document.getElementById('v_cc_inicio')?.value)||0,
-      total_ventas: ventaRows.reduce((s,t)=>s+t.total,0),
-      total_prendas: ventaRows.reduce((s,t)=>s+(t.prendas||0),0),
-      tickets: ventaRows.length,
-      // Mark as draft
-      is_draft: true
-    }).catch(()=>{});
+  if(currentUser&&currentUser.email!=='local'){
+    _sbFetch('POST','jornadas?on_conflict=id',{id:'draft_'+currentUser.id,fecha:document.getElementById('v_fecha')?.value||todayStr(),vendedor:currentUser.email,obs_dia:'',anulada:false,edit_log:[],ventas:ventaRows,gastos:gastoRows,cc_inicio:parseFloat(document.getElementById('v_cc_inicio')?.value)||0,total_ventas:ventaRows.reduce((s,t)=>s+t.total,0),total_prendas:ventaRows.reduce((s,t)=>s+(t.prendas||0),0),tickets:ventaRows.length,is_draft:true}).catch(()=>{});
   }
 }
 
 async function restorePendingJornada(){
-  // Check Supabase draft first (for multi-device recovery)
-  if(currentUser && currentUser.email !== 'local'){
+  if(currentUser&&currentUser.email!=='local'){
     try{
-      const drafts = await _sbFetch('GET','jornadas?select=*&id=eq.draft_'+currentUser.id+'&limit=1');
-      if(drafts && drafts[0] && drafts[0].ventas && drafts[0].ventas.length){
-        const draft = drafts[0];
-        if(draft.fecha === todayStr()){
-          ventaRows = draft.ventas || [];
-          gastoRows = draft.gastos || [];
-          if(draft.cc_inicio){ const el=document.getElementById('v_cc_inicio');if(el)el.value=draft.cc_inicio; }
-          const ccNum=document.getElementById('cc-num');if(ccNum)ccNum.textContent=clientesHoy;
-          renderTicketsDelDia();renderGastosTable();recalcVentas();updateObjetivo();
-          showToast('🔄 ' + ventaRows.length + ' ventas restauradas desde la nube');
-          return;
-        }
+      const drafts=await _sbFetch('GET','jornadas?select=*&id=eq.draft_'+currentUser.id+'&limit=1');
+      if(drafts&&drafts[0]&&drafts[0].ventas&&drafts[0].ventas.length&&drafts[0].fecha===todayStr()){
+        ventaRows=drafts[0].ventas||[];gastoRows=drafts[0].gastos||[];
+        if(drafts[0].cc_inicio){const el=document.getElementById('v_cc_inicio');if(el)el.value=drafts[0].cc_inicio;}
+        const ccNum=document.getElementById('cc-num');if(ccNum)ccNum.textContent=clientesHoy;
+        renderTicketsDelDia();renderGastosTable();recalcVentas();updateObjetivo();
+        showToast('🔄 '+ventaRows.length+' ventas restauradas desde la nube');return;
       }
     }catch(e){}
   }
-  // Fallback to localStorage
   try{
-    const stored = localStorage.getItem(PENDING_KEY);
-    if(!stored) return;
-    const data = JSON.parse(stored);
-    if(data.fecha !== todayStr()){
-      localStorage.removeItem(PENDING_KEY);
-      return;
-    }
-    if(!data.ventaRows || !data.ventaRows.length) return;
-    ventaRows = data.ventaRows;
-    gastoRows = data.gastoRows || [];
-    clientesHoy = data.clientesHoy || 0;
-    if(data.ccInicio){ const el=document.getElementById('v_cc_inicio');if(el)el.value=data.ccInicio; }
+    const stored=localStorage.getItem(PENDING_KEY);if(!stored)return;
+    const data=JSON.parse(stored);
+    if(data.fecha!==todayStr()){localStorage.removeItem(PENDING_KEY);return;}
+    if(!data.ventaRows||!data.ventaRows.length)return;
+    ventaRows=data.ventaRows;gastoRows=data.gastoRows||[];clientesHoy=data.clientesHoy||0;
+    if(data.ccInicio){const el=document.getElementById('v_cc_inicio');if(el)el.value=data.ccInicio;}
     const ccNum=document.getElementById('cc-num');if(ccNum)ccNum.textContent=clientesHoy;
-    renderTicketsDelDia();
-    renderGastosTable();
-    recalcVentas();
-    updateObjetivo();
-    showToast('🔄 ' + ventaRows.length + ' ventas restauradas del día');
-  }catch(e){
-    console.warn('restorePendingJornada error:', e);
-    localStorage.removeItem(PENDING_KEY);
-  }
+    renderTicketsDelDia();renderGastosTable();recalcVentas();updateObjetivo();
+    showToast('🔄 '+ventaRows.length+' ventas restauradas del día');
+  }catch(e){localStorage.removeItem(PENDING_KEY);}
 }
 
 </script>
