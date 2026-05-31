@@ -8589,7 +8589,6 @@ function saveNewProduct(){
     sale1:fmtM(sale1),sale1_label:'x1',sale2:fmtM(sale2),
     sale2_label:document.getElementById('np_s2l')?.value||'x2',
     oferta:ofertaVal>0?fmtM(ofertaVal):'$0',
-    oferta:ofertaVal>0?fmtM(ofertaVal):'$0',
     qty_num:qty,qty_display:qty+' unidades',total_cost:fmtM(cost*qty),single:true,img1,img2,imgs};
   newP.barcode=generateBarcode(newP.id);
   products.push(newP);stockMap[newP.id]=fs;
@@ -8600,9 +8599,17 @@ function saveNewProduct(){
     savePurchase(ph).catch(e=>console.warn('savePurchase:',e));
   }
   saveAll();
-  // Subir a Supabase con imágenes a Storage
-  // saveProduct called async in background
-  try{if(typeof saveProduct==='function')saveProduct(newP);}catch(e){}
+  // Save to Supabase directly
+  _sbFetch('POST','products?on_conflict=id',{
+    id:newP.id,tag:newP.tag,title:newP.title,supplier:newP.supplier,
+    cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,
+    sale2_label:newP.sale2_label,oferta:newP.oferta||'$0',
+    qty_num:newP.qty_num,qty_display:newP.qty_display,
+    total_cost:newP.total_cost,single:true,
+    img1:newP.img1||'',img2:newP.img2||'',imgs:newP.imgs||[],
+    obs:'',active:true,barcode:newP.barcode,provTipo:newP.provTipo||''
+  }).catch(e=>console.warn('Save product error:',e));
+  _sbFetch('POST','stock?on_conflict=product_id',{product_id:newP.id,qty:fs}).catch(e=>console.warn('Save stock error:',e));
   renderAll();npEditImgs=[];closeNewProduct();showToast('✅ Producto agregado correctamente');
 }
 
