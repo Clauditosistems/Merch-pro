@@ -9060,6 +9060,7 @@ async function loadFromSupabase(){
       if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;}}catch(e){}
     showToast('✅ Datos cargados');
     renderAll();
+    updateModeUI();
     restorePendingJornada();
   }catch(err){
     console.error('Error loading from Supabase:',err);
@@ -9865,7 +9866,14 @@ function removeTicket(idx){
   ventaRows.splice(idx,1);
   recalcVentas();
   renderTicketsDelDia();
-  autoSavePendingJornada();
+  if(ventaRows.length>0){
+    autoSavePendingJornada();
+  }else{
+    try{localStorage.removeItem('mv6_pending_jornada');}catch(e){}
+    if(currentUser&&currentUser.email!=='local'){
+      _sbFetch('DELETE','jornadas?id=eq.draft_'+currentUser.id).catch(()=>{});
+    }
+  }
   showToast('🔄 Venta eliminada — stock repuesto');
 }
 
