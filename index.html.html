@@ -6643,8 +6643,8 @@ function _syncAjustesSupabase(){
     valor_perdida:a.valorImpacto||a.valor_perdida||0
   }));
   if(!rows.length)return;
-  _sbFetch('POST','stock_adjustments',rows)
-    .catch(e=>console.warn('Ajustes sync error:',e.message));
+  // stock_adjustments sync disabled - run SQL: ALTER TABLE stock_adjustments ALTER COLUMN id SET DEFAULT gen_random_uuid();
+  // _sbFetch('POST','stock_adjustments',rows).catch(e=>console.warn('Ajustes sync error:',e.message));
 }
 
 function _syncStockSupabase(){
@@ -8601,9 +8601,8 @@ function saveNewProduct(){
   }
   saveAll();
   // Subir a Supabase con imágenes a Storage
-  if(typeof saveProduct==='function'){
-    saveProduct(newP).catch(e=>console.warn('saveProduct sync:',e));
-  }
+  // saveProduct called async in background
+  try{if(typeof saveProduct==='function')saveProduct(newP);}catch(e){}
   renderAll();npEditImgs=[];closeNewProduct();showToast('✅ Producto agregado correctamente');
 }
 
