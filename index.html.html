@@ -8574,6 +8574,7 @@ function saveNewProduct(){
   const cost=parseFloat(document.getElementById('np_cost')?.value)||0;
   const sale1=parseFloat(document.getElementById('np_sale1')?.value)||0;
   const sale2=parseFloat(document.getElementById('np_sale2')?.value)||0;
+  const ofertaVal=parseFloat(document.getElementById('np_oferta')?.value)||0;
   const qty=parseInt(document.getElementById('np_qty')?.value)||0;
   const stock=parseInt(document.getElementById('np_stock')?.value);
   const fs=isNaN(stock)?qty:stock;
@@ -8586,6 +8587,7 @@ function saveNewProduct(){
     provTipo:document.getElementById('np_prov_tipo')?.value||'',cost:fmtM(cost),
     sale1:fmtM(sale1),sale1_label:'x1',sale2:fmtM(sale2),
     sale2_label:document.getElementById('np_s2l')?.value||'x2',
+    oferta:ofertaVal>0?fmtM(ofertaVal):'$0',
     oferta:ofertaVal>0?fmtM(ofertaVal):'$0',
     qty_num:qty,qty_display:qty+' unidades',total_cost:fmtM(cost*qty),single:true,img1,img2,imgs};
   newP.barcode=generateBarcode(newP.id);
