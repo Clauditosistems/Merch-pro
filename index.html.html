@@ -9830,7 +9830,7 @@ function renderTicketsDelDia(){
         </div>
         <div style="display:flex;align-items:center;gap:.45rem">
           <span class="ticket-total">${fmtM(tk.total)}</span>
-          ${isAdminMode?`<button class="del-btn" onclick="removeTicket(${i})" style="font-size:.68rem">✕</button>`:''}
+          <button class="del-btn" onclick="removeTicket(${i})" style="font-size:.68rem">✕</button>
         </div>
       </div>
       <div class="ticket-items">${tk.items.map(it=>`${it.qty}x ${it.productTitle} @${fmtM(it.price)}`).join(' · ')}${tk.obs?` — ${tk.obs}`:''}</div>
@@ -11142,7 +11142,6 @@ function resetProduct(){
 
 // ══ NEW PRODUCT ═══════════════════════════════════════════════════
 function openNewProduct(){
-  if(currentUserRole!=='admin'&&!isAdminMode){showToast('❌ Solo admin');return;}
   npEditImgs=[];
   document.getElementById('newProdModal').classList.add('open');document.body.style.overflow='hidden';
   document.getElementById('newProdForm').reset();
@@ -11686,7 +11685,6 @@ function renderAdminComprasProductInfo(){
 let ajusteData={};  // {productId: newStock}
 
 function openAjusteStock(){
-  if(currentUserRole!=='admin'&&!isAdminMode){showToast('❌ Solo admin puede hacer ajustes de stock');return;}
   ajusteData={};
   document.getElementById('ajusteSearch').value='';
   const fechaEl=document.getElementById('ajusteFecha');
