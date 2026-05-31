@@ -140,7 +140,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .edit-log{background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);border-radius:6px;padding:.45rem .65rem;font-size:.71rem;margin-top:.45rem}
 .edit-log-title{color:var(--blue);font-weight:700;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.22rem}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:1.2rem 1rem;overflow-y:auto}
-.modal-overlay.open{display:flex}
+.modal-overlay.open{display:flex!important;z-index:99999!important}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:860px;padding:1.5rem;margin:auto}
 .modal-sm{max-width:520px}
 .modal-lg{max-width:1100px}
@@ -9373,6 +9373,7 @@ function switchMode(){
   document.getElementById('pinInput').value='';
   document.getElementById('pinError').textContent='';
   document.getElementById('pinModal').classList.add('open');
+  document.getElementById('pinModal').style.display='flex';
   document.body.style.overflow='hidden';
   setTimeout(()=>document.getElementById('pinInput').focus(),80);
 }
@@ -9559,7 +9560,8 @@ function abrirCarrito(){
   setV('cart_cliente','');setV('cart_vendedor','');setV('cart_medio','efectivo');setV('cart_desc_val','0');setV('cart_obs','');
   // No agregar item por default - el vendedor elige o escanea
   renderCartTable();recalcCarrito();
-  document.getElementById('carritoModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('carritoModal').classList.add('open');
+  document.getElementById('carritoModal').style.display='flex';document.body.style.overflow='hidden';
 }
 function cerrarCarrito(){
   document.getElementById('carritoModal').classList.remove('open');document.body.style.overflow='';cartItems=[];
@@ -9611,6 +9613,7 @@ function openCartPicker(rid){
   const q=document.getElementById('cartPickerSearch');if(q)q.value='';
   renderCartPickerList('');
   document.getElementById('cartPickerModal').classList.add('open');
+  document.getElementById('cartPickerModal').style.display='flex';
   document.body.style.overflow='hidden';
   setTimeout(()=>{const el=document.getElementById('cartPickerSearch');if(el)el.focus();},80);
 }
@@ -9815,7 +9818,8 @@ function quickAddVenta(pid){
   const dt=document.getElementById('cart_desc_toggle');
   if(dt)dt.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('active',i===0));
   renderCartTable();recalcCarrito();
-  document.getElementById('carritoModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('carritoModal').classList.add('open');
+  document.getElementById('carritoModal').style.display='flex';document.body.style.overflow='hidden';
   showPage('ventas',document.querySelectorAll('.nav-tab')[2]);
 }
 
@@ -10035,7 +10039,8 @@ function abrirCierreModal(){
   document.getElementById('cierreProdBody').innerHTML=
     Object.entries(prodTotals).map(([n,d])=>`<tr><td>${n}</td><td>${d.qty} u.</td><td style="color:var(--green);font-weight:600">${fmtM(d.total)}</td></tr>`).join('')+
     (totalVintage?`<tr><td>🕰️ Vintage</td><td>${totalVintage} u.</td><td style="color:var(--purple)">${fmtM(ventaRows.filter(t=>t.items?.some(i=>i.isVintage||i.productId===VINTAGE_ID)).reduce((s,t)=>s+(t.items||[]).filter(i=>i.isVintage||i.productId===VINTAGE_ID).reduce((ss,i)=>ss+(i.subtotal||i.price*i.qty||0),0),0))}</td></tr>`:'');
-  document.getElementById('cierreModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('cierreModal').classList.add('open');
+  document.getElementById('cierreModal').style.display='flex';document.body.style.overflow='hidden';
   // Mostrar ventas canceladas
   const _canceladas=window.ventasCanceladas||[];
   const _canceladasEl=document.getElementById('cierreModalCanceladas');
@@ -10306,7 +10311,8 @@ function viewJornada(id,editable){
     ${(j.gastos||[]).length?`<div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;margin-bottom:.5rem">Gastos</div>
     <div class="tbl-wrap"><table class="hist-tbl"><thead><tr><th>Motivo</th><th>Importe</th></tr></thead><tbody>${gRows}</tbody></table></div>`:''}
     ${j.editLog?.length?`<div class="edit-log" style="margin-top:.65rem"><div class="edit-log-title">Registro de ediciones</div>${j.editLog.map(e=>`<div>${e.when} — ${e.motivo}</div>`).join('')}</div>`:''}`;
-  document.getElementById('jornadaDetailModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('jornadaDetailModal').classList.add('open');
+  document.getElementById('jornadaDetailModal').style.display='flex';document.body.style.overflow='hidden';
 }
 function closeJornadaDetail(){document.getElementById('jornadaDetailModal').classList.remove('open');document.body.style.overflow='';}
 
@@ -10314,7 +10320,8 @@ function closeJornadaDetail(){document.getElementById('jornadaDetailModal').clas
 function openAnular(id){
   if(!isAdminMode){showToast('❌ Solo admin puede anular');return;}
   anularJornadaId=id;document.getElementById('anular_motivo').value='';
-  document.getElementById('anularModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('anularModal').classList.add('open');
+  document.getElementById('anularModal').style.display='flex';document.body.style.overflow='hidden';
 }
 function closeAnular(){document.getElementById('anularModal').classList.remove('open');document.body.style.overflow='';anularJornadaId=null;}
 function confirmarAnular(){
@@ -10372,6 +10379,7 @@ function openEditVenta(jornadaId,rowRid){
   renderEvItems();
   recalcEditVenta();
   document.getElementById('editVentaModal').classList.add('open');
+  document.getElementById('editVentaModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 
@@ -10690,7 +10698,8 @@ function verDetalleCaja(jornadaId){
       <thead><tr><th>Cliente</th><th>Prendas</th><th>Subtotal</th><th>Desc.</th><th>Medio</th><th>Total</th></tr></thead>
       <tbody>${tkRows}</tbody>
     </table></div>`;
-  document.getElementById('cajaDiaModal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('cajaDiaModal').classList.add('open');
+  document.getElementById('cajaDiaModal').style.display='flex';document.body.style.overflow='hidden';
 }
 
 // ══ COMPRAS HISTORIAL ═════════════════════════════════════════════
@@ -10804,7 +10813,8 @@ function toggleComprasDay(grpId){
 
 function openAdmin(){
   if(!isAdminMode){showToast('❌ Solo admin');return;}
-  renderAdminList();document.getElementById('adminModal').classList.add('open');document.body.style.overflow='hidden';
+  renderAdminList();document.getElementById('adminModal').classList.add('open');
+  document.getElementById('adminModal').style.display='flex';document.body.style.overflow='hidden';
 }
 function closeAdmin(){
   document.getElementById('adminModal').classList.remove('open');document.body.style.overflow='';
@@ -10932,6 +10942,7 @@ function openEditPurchaseForm(purchaseId){
   if(pagoEl)pagoEl.value=h.pago||'efectivo';
   updateEditPurchaseCalc();
   document.getElementById('editPurchaseModal').classList.add('open');
+  document.getElementById('editPurchaseModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 function updateEditPurchaseCalc(){
@@ -11149,7 +11160,11 @@ function resetProduct(){
 // ══ NEW PRODUCT ═══════════════════════════════════════════════════
 function openNewProduct(){
   npEditImgs=[];
-  document.getElementById('newProdModal').classList.add('open');document.body.style.overflow='hidden';
+  const _npMod=document.getElementById('newProdModal');
+  _npMod.classList.add('open');
+  _npMod.style.display='flex';
+  _npMod.style.zIndex='99999';
+  document.body.style.overflow='hidden';
   document.getElementById('newProdForm').reset();
   const prev=document.getElementById('newImgPreview');if(prev)prev.classList.remove('visible');
   renderNpImgGallery();
@@ -11253,7 +11268,8 @@ function openNewPurchase(pid){
   setV('np2_qty','');setV('np2_cost',parseMoney(p.cost));setV('np2_sale1',parseMoney(p.sale1));
   setV('np2_sale2',parseMoney(p.sale2));setV('np2_date',todayStr());setV('np2_note','');
   document.getElementById('np2_info').innerHTML=`Stock actual: <b>${getStock(pid)}</b> / <b>${p.qty_num}</b>`;
-  updatePurchaseCalc();document.getElementById('newPurchaseModal').classList.add('open');document.body.style.overflow='hidden';
+  updatePurchaseCalc();document.getElementById('newPurchaseModal').classList.add('open');
+  document.getElementById('newPurchaseModal').style.display='flex';document.body.style.overflow='hidden';
 }
 function closeNewPurchase(){document.getElementById('newPurchaseModal').classList.remove('open');document.body.style.overflow='';}
 function updatePurchaseCalc(){
@@ -11354,6 +11370,7 @@ function openHistory(pid){
     `Stock actual: ${stockActual} u. · ${compras.length} compra${compras.length!==1?'s':''} · ${totAjustes} ajuste${totAjustes!==1?'s':''} · Total ingresado: ${totCompras} u.`;
 
   document.getElementById('historyModal').classList.add('open');
+  document.getElementById('historyModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 function closeHistory(){document.getElementById('historyModal').classList.remove('open');document.body.style.overflow='';}
@@ -11698,7 +11715,10 @@ function openAjusteStock(){
   const motivoEl=document.getElementById('ajusteMotivo');
   if(motivoEl)motivoEl.value='';
   renderAjusteTable();
-  document.getElementById('ajusteStockModal').classList.add('open');
+  const _ajMod=document.getElementById('ajusteStockModal');
+  _ajMod.classList.add('open');
+  _ajMod.style.display='flex';
+  _ajMod.style.zIndex='99999';
   document.body.style.overflow='hidden';
 }
 function closeAjusteStock(){
@@ -11872,6 +11892,7 @@ function openProductDetail(id){
   const etBtn=document.getElementById('pdEtiquetaBtn');
   if(etBtn)etBtn.onclick=()=>abrirImpresionEtiquetas(id);
   document.getElementById('productDetailModal').classList.add('open');
+  document.getElementById('productDetailModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 function closeProductDetail(){
@@ -12355,6 +12376,7 @@ function openNuevoProveedor(){
   });
   document.getElementById('nprov_ctacte').checked=false;
   document.getElementById('nuevoProveedorModal').classList.add('open');
+  document.getElementById('nuevoProveedorModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 function editarProveedor(id){
@@ -12368,6 +12390,7 @@ function editarProveedor(id){
   setV('nprov_ig',p.ig);setV('nprov_notas',p.notas);
   document.getElementById('nprov_ctacte').checked=!!p.ctacte;
   document.getElementById('nuevoProveedorModal').classList.add('open');
+  document.getElementById('nuevoProveedorModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 function closeNuevoProveedor(){
@@ -12477,6 +12500,7 @@ function openDetalleProveedor(id){
     </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted)">Sin compras registradas</td></tr>';
   }
   document.getElementById('detalleProveedorModal').classList.add('open');
+  document.getElementById('detalleProveedorModal').style.display='flex';
   document.body.style.overflow='hidden';
 }
 function closeDetalleProveedor(){
@@ -12913,6 +12937,7 @@ Este monto se sumará al saldo de Caja Ivo.`))return;
 
 function openCajaIvoSalida(){
   document.getElementById('cajaIvoSalidaModal').classList.add('open');
+  document.getElementById('cajaIvoSalidaModal').style.display='flex';
   document.body.style.overflow='hidden';
   document.getElementById('cis_importe').value='';
   document.getElementById('cis_detalle').value='';
@@ -12949,6 +12974,7 @@ function confirmarCajaIvoSalida(){
 function openArqueoCajaIvo(){
   const saldo=getCajaIvoSaldo();
   document.getElementById('cajaIvoArqueoModal').classList.add('open');
+  document.getElementById('cajaIvoArqueoModal').style.display='flex';
   document.body.style.overflow='hidden';
   document.getElementById('arq_saldo_sistema').textContent=fmtM(saldo);
   document.getElementById('arq_contado').value='';
@@ -13125,6 +13151,7 @@ function renderCostosFijos(){
 
 function abrirNuevoCostoFijo(){
   document.getElementById('nuevoCostoFijoModal').classList.add('open');
+  document.getElementById('nuevoCostoFijoModal').style.display='flex';
   document.body.style.overflow='hidden';
   document.getElementById('ncf_nombre').value='';
   document.getElementById('ncf_monto').value='';
