@@ -8899,6 +8899,12 @@ async function _refreshTokenIfNeeded(){
             expires_at:data.expires_at
           }));
         }
+      } else {
+        // Token inválido - limpiar sesión y mostrar login
+        localStorage.removeItem(sbKey);
+        currentUser=null; currentUserRole=''; isAdminMode=false;
+        document.getElementById('loginScreen').style.display='flex';
+        document.getElementById('mainApp').style.display='none';
       }
     }
   }catch(e){console.warn('Token refresh error:',e);}
@@ -15512,12 +15518,20 @@ document.addEventListener('DOMContentLoaded', async function(){
       if(token && user){
         // Verificar que el token no esté vencido
         const exp = parsed?.expires_at || parsed?.currentSession?.expires_at || 0;
+        // Also verify token is actually valid by checking it's not too old
+        const tokenAge = Date.now() - (exp * 1000 - 7200000); // 2hr token life
         if(exp * 1000 > Date.now()){
           currentUser = user;
           try{
             const roleRes=await fetch(supa.supabaseUrl+'/rest/v1/user_roles?select=role,name&id=eq.'+user.id+'&limit=1',{
               headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token}
             });
+            if(!roleRes.ok){
+              // Token rejected - force re-login
+              const sbKey='sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token';
+              localStorage.removeItem(sbKey);
+              showLogin();return;
+            }
             const roleArr=await roleRes.json();
             currentUserRole=(roleArr[0]?.role)||'vendedor';
           }catch(e){currentUserRole=(user?.email==='clauditosistemasia@gmail.com')?'admin':'vendedor';}
