@@ -6636,12 +6636,13 @@ function _syncAjustesSupabase(){
   const ajustes=window.stockAdjustments||[];
   if(!ajustes.length)return;
   // id is GENERATED ALWAYS so we omit it and use date+user as natural key
-  const rows=ajustes.map(a=>({
+  const rows=ajustes.filter(a=>a.date).map(a=>({
     date:a.date,time_str:a.time||a.time_str||'',
-    by_user:a.by||a.by_user||'',items:a.items||[],
+    by_user:a.by||a.by_user||'admin',items:a.items||[],
     total_faltantes:a.totalFaltantes||0,
     valor_perdida:a.valorImpacto||a.valor_perdida||0
   }));
+  if(!rows.length)return;
   _sbFetch('POST','stock_adjustments',rows)
     .catch(e=>console.warn('Ajustes sync error:',e.message));
 }
@@ -8600,12 +8601,9 @@ function saveNewProduct(){
   }
   saveAll();
   // Subir a Supabase con imágenes a Storage
-  saveProduct(newP).then(()=>{
-    // Actualizar el producto en el array local con las URLs de Storage
-    const idx=products.findIndex(p=>p.id===newP.id);
-    if(idx>=0)products[idx]={...products[idx],img1:newP.img1,img2:newP.img2,imgs:newP.imgs};
-    saveAll();
-  }).catch(e=>console.warn('saveProduct error:',e));
+  if(typeof saveProduct==='function'){
+    saveProduct(newP).catch(e=>console.warn('saveProduct sync:',e));
+  }
   renderAll();npEditImgs=[];closeNewProduct();showToast('✅ Producto agregado correctamente');
 }
 
