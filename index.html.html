@@ -7379,7 +7379,9 @@ async function _sbFetch(method, path, body){
     const _ls=localStorage.getItem('sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token');
     if(_ls){const _p=JSON.parse(_ls);const _t=_p?.access_token||_p?.currentSession?.access_token;if(_t)token=_t;}
   }catch(e){}
-  const opts={method,headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'}};
+  const isUpsert=method==='POST'&&path.includes('on_conflict');
+  const prefer=isUpsert?'resolution=merge-duplicates,return=representation':'return=representation';
+  const opts={method,headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':prefer}};
   if(body)opts.body=JSON.stringify(body);
   const r=await fetch(supa.supabaseUrl+'/rest/v1/'+path,opts);
   if(!r.ok){const t=await r.text();throw new Error('HTTP '+r.status+': '+t);}
@@ -7748,14 +7750,10 @@ function saveAll(){
 function _syncProveedoresSupabase(){
   if(!currentUser||currentUser.email==='local')return;
   if(!proveedores.length)return;
-  _sbFetch('POST','proveedores?on_conflict=id',
-    proveedores.map(p=>({
-      id:p.id,nombre:p.nombre,tipo:p.tipo||'',
-      dir:p.dir||'',tel:p.tel||'',ig:p.ig||'',
-      notas:p.notas||'',ctacte:p.ctacte||false,
-      saldo:p.saldo||0,movimientos:p.movimientos||[]
-    }))
-  ).catch(e=>console.warn('Proveedores sync error:',e.message));
+  const rows=proveedores.map(p=>({id:p.id,nombre:p.nombre,tipo:p.tipo||'',dir:p.dir||'',tel:p.tel||'',ig:p.ig||'',notas:p.notas||'',ctacte:p.ctacte||false,saldo:p.saldo||0,movimientos:p.movimientos||[]}));
+  let token=supa.supabaseKey;
+  try{const ls=localStorage.getItem('sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token');if(ls){const p=JSON.parse(ls);const t=p?.access_token||p?.currentSession?.access_token;if(t)token=t;}}catch(e){}
+  fetch(supa.supabaseUrl+'/rest/v1/proveedores',{method:'POST',headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)}).catch(e=>console.warn('Proveedores sync error:',e.message));
 }
 function _syncExtraSupabase(){
   if(!currentUser||currentUser.email==='local')return;
@@ -7771,23 +7769,23 @@ function _syncAjustesSupabase(){
   if(!currentUser||currentUser.email==='local')return;
   const ajustes=window.stockAdjustments||[];
   if(!ajustes.length)return;
+  // id is GENERATED ALWAYS so we omit it and use date+user as natural key
   const rows=ajustes.map(a=>({
-    id:a.id,date:a.date,time_str:a.time||a.time_str||'',
+    date:a.date,time_str:a.time||a.time_str||'',
     by_user:a.by||a.by_user||'',items:a.items||[],
     total_faltantes:a.totalFaltantes||0,
     valor_perdida:a.valorImpacto||a.valor_perdida||0
   }));
-  _sbFetch('POST','stock_adjustments?on_conflict=id',rows)
+  _sbFetch('POST','stock_adjustments',rows)
     .catch(e=>console.warn('Ajustes sync error:',e.message));
 }
 
 function _syncStockSupabase(){
-  const stockRows=Object.entries(stockMap).map(([pid,qty])=>({
-    product_id:parseInt(pid),qty,updated_at:new Date().toISOString()
-  }));
+  const stockRows=Object.entries(stockMap).map(([pid,qty])=>({product_id:parseInt(pid),qty,updated_at:new Date().toISOString()}));
   if(!stockRows.length)return;
-  _sbFetch('POST','stock?on_conflict=product_id',stockRows)
-    .catch(e=>console.warn('Stock sync error:',e.message));
+  let token=supa.supabaseKey;
+  try{const ls=localStorage.getItem('sb-'+supa.supabaseUrl.split('//')[1].split('.')[0]+'-auth-token');if(ls){const p=JSON.parse(ls);const t=p?.access_token||p?.currentSession?.access_token;if(t)token=t;}}catch(e){}
+  fetch(supa.supabaseUrl+'/rest/v1/stock',{method:'POST',headers:{'apikey':supa.supabaseKey,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(stockRows)}).catch(e=>console.warn('Stock sync error:',e.message));
 }
 
 // ══ STOCK / PROFIT ════════════════════════════════════════════════
@@ -14556,7 +14554,7 @@ function autoSavePendingJornada(){
     localStorage.setItem(PENDING_KEY, JSON.stringify(data));
   }catch(e){}
   if(currentUser&&currentUser.email!=='local'){
-    _sbFetch('POST','jornadas?on_conflict=id',{id:'draft_'+currentUser.id,fecha:document.getElementById('v_fecha')?.value||todayStr(),vendedor:currentUser.email,obs_dia:'',anulada:false,edit_log:[],ventas:ventaRows,gastos:gastoRows,cc_inicio:parseFloat(document.getElementById('v_cc_inicio')?.value)||0,total_ventas:ventaRows.reduce((s,t)=>s+t.total,0),total_prendas:ventaRows.reduce((s,t)=>s+(t.prendas||0),0),tickets:ventaRows.length,is_draft:true}).catch(()=>{});
+    _sbFetch('POST','jornadas?on_conflict=id',{id:'draft_'+currentUser.id,fecha:document.getElementById('v_fecha')?.value||todayStr(),vendedor:currentUser.email,obs_dia:'',anulada:false,edit_log:[],ventas:ventaRows,gastos:gastoRows,cc_inicio:parseFloat(document.getElementById('v_cc_inicio')?.value)||0,total_ventas:ventaRows.reduce((s,t)=>s+t.total,0),total_prendas:ventaRows.reduce((s,t)=>s+(t.prendas||0),0),tickets:ventaRows.length}).catch(()=>{});
   }
 }
 
