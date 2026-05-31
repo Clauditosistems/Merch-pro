@@ -11142,7 +11142,7 @@ function resetProduct(){
 
 // ══ NEW PRODUCT ═══════════════════════════════════════════════════
 function openNewProduct(){
-  if(!isAdminMode){showToast('❌ Solo admin');return;}
+  if(currentUserRole!=='admin'&&!isAdminMode){showToast('❌ Solo admin');return;}
   npEditImgs=[];
   document.getElementById('newProdModal').classList.add('open');document.body.style.overflow='hidden';
   document.getElementById('newProdForm').reset();
@@ -11686,7 +11686,7 @@ function renderAdminComprasProductInfo(){
 let ajusteData={};  // {productId: newStock}
 
 function openAjusteStock(){
-  if(!isAdminMode){showToast('❌ Solo admin puede hacer ajustes de stock');return;}
+  if(currentUserRole!=='admin'&&!isAdminMode){showToast('❌ Solo admin puede hacer ajustes de stock');return;}
   ajusteData={};
   document.getElementById('ajusteSearch').value='';
   const fechaEl=document.getElementById('ajusteFecha');
