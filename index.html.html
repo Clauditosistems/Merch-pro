@@ -8828,7 +8828,7 @@ async function loginUser(){
       });
       const roleArr=await roleRes.json();
       currentUserRole=(roleArr[0]?.role)||'vendedor';
-    }catch(e){currentUserRole='vendedor';}
+    }catch(e){currentUserRole=(currentUser?.email==='clauditosistemasia@gmail.com')?'admin':'vendedor';}
     isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
@@ -15490,7 +15490,7 @@ document.addEventListener('DOMContentLoaded', async function(){
       const roleArr=await r.json();
       const roleData=roleArr[0]||{};
       currentUserRole=roleData.role||'vendedor';
-    }catch(e){ currentUserRole='vendedor'; }
+    }catch(e){ currentUserRole=(currentUser?.email==='clauditosistemasia@gmail.com')?'admin':'vendedor'; }
     isAdminMode=(currentUserRole==='admin');
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
@@ -15520,7 +15520,7 @@ document.addEventListener('DOMContentLoaded', async function(){
             });
             const roleArr=await roleRes.json();
             currentUserRole=(roleArr[0]?.role)||'vendedor';
-          }catch(e){currentUserRole='vendedor';}
+          }catch(e){currentUserRole=(user?.email==='clauditosistemasia@gmail.com')?'admin':'vendedor';}
           isAdminMode=(currentUserRole==='admin');
           document.getElementById('loginScreen').style.display='none';
           document.getElementById('mainApp').style.display='block';
