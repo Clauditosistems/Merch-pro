@@ -13947,7 +13947,7 @@ function calcCartTotals(){
   const subtotal=cartItems.reduce((s,it)=>s+it.price*it.qty,0);
   // Per-item discounts
   const itemDiscTotal=cartItems.reduce((s,it)=>{
-    return s+Math.round(it.price*it.qty*(it.discPct||0)/100);
+    return s+Math.round(it.price*it.qty*(it.discPct||0)/100)+(it.discPesos||0);
   },0);
   // Global cart discount %
   const descVal=parseFloat(document.getElementById('cart_desc_val')?.value)||0;
