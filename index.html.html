@@ -13672,7 +13672,7 @@ function renderGrid(){
     const img2=hasTwo?`<img src="${allImgs[1]}" alt="">`:'';
     const ao=isAdminMode?'':'display:none';
     html+=`<div class="card stock-${st}" id="card-${p.id}">
-      <div class="card-imgs ${imgCls}" style="cursor:pointer"><img src="${allImgs[0]||p.img1}" alt="" onclick="event.stopPropagation();if(this.src)showImgModal(this.src,'${p.title.replace(/'/g,'\\'')}')" style="cursor:zoom-in">${img2.replace('<img ','<img onclick=\"event.stopPropagation();if(this.src)showImgModal(this.src,\'' + p.title.replace(/'/g,\"\\\\'\")+'\')\" style=\"cursor:zoom-in\" ')}</div>
+      <div class="card-imgs ${imgCls}" onclick="if(event.target.tagName==='IMG'&&event.target.src){showImgModal(event.target.src,this.dataset.title)}" data-title="${p.title}" style="cursor:pointer"><img src="${allImgs[0]||p.img1}" alt="" style="cursor:zoom-in">${hasTwo?'<img src="'+allImgs[1]+'" alt="" style="cursor:zoom-in">':''}</div>
       <div class="card-body">
         <div class="tag">${p.tag}</div><div class="card-title">${p.title}</div>
         ${isAdminMode?`${isAdminMode?`<div class="card-supplier">${p.supplier}${p.provTipo?` <span style="font-size:.6rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.08rem .3rem;margin-left:.3rem">${p.provTipo}</span>`:''}</div>`:''}`:''}
