@@ -13152,7 +13152,9 @@ async function loadFromSupabase(){
     // Load products
     const prods = await sbFetch('products?select=*&active=eq.true&order=id');
     if(prods&&prods.length){
-      products=PRODUCTS_DEFAULT.map(def=>{
+      // Only include products that exist in Supabase (deleted ones won't be in prods)
+      const prodIds=new Set((prods||[]).map(p=>p.id));
+      products=PRODUCTS_DEFAULT.filter(def=>prodIds.has(def.id)).map(def=>{
         const sv=prods.find(p=>p.id===def.id);
         if(!sv)return{...def};
         const img1Final=(sv.img1&&sv.img1.includes('supabase.co/storage'))?sv.img1:def.img1;
