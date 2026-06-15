@@ -15338,7 +15338,8 @@ function saveProduct(){
   if(editImgs.length>0){p.img1=editImgs[0].src;p.img2=editImgs.length>1?editImgs[1].src:'';p.imgs=editImgs.map(x=>x.src);}
   extraMap[p.id]={date:document.getElementById('f_date')?.value||'',obs:document.getElementById('f_obs')?.value||''};
   saveAll();renderAll();cancelEdit();showToast('✅ Guardado correctamente');
-  saveProduct(p).catch(e=>console.warn('saveProduct sync:',e));
+  // Save to Supabase directly (avoids naming conflict with saveProduct UI function)
+  _syncProductToSupabase(p);
 }
 function deleteProduct(id){
   if(!isAdminMode){showToast('\u274c Solo admin');return;}
@@ -19289,6 +19290,22 @@ function eliminarJornada(jid){
   _sbFetch('DELETE','caja?jornada_id=eq.'+jid).catch(()=>{});
   renderAll();renderHistVentas();
   showToast('Jornada eliminada');
+}
+
+function _syncProductToSupabase(p){
+  if(!currentUser||currentUser.email==='local')return;
+  const row={
+    id:p.id,tag:p.tag,title:p.title,supplier:p.supplier,
+    cost:p.cost,sale1:p.sale1,sale1_label:p.sale1_label||'x1',
+    sale2:p.sale2,sale2_label:p.sale2_label||'x2',
+    oferta:p.oferta||'$0',qty_num:p.qty_num,qty_display:p.qty_display,
+    total_cost:p.total_cost,single:p.single||true,
+    obs:p.obs||'',active:true,barcode:p.barcode||'',
+    img1:p.img1||'',img2:p.img2||'',imgs:p.imgs||[]
+  };
+  if(p.stock_inicial!==undefined)row.stock_inicial=p.stock_inicial;
+  _sbFetch('POST','products?on_conflict=id',row)
+    .catch(e=>console.warn('Sync product error:',e.message));
 }
 </script>
 </body></html>
