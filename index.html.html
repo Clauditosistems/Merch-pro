@@ -15392,13 +15392,13 @@ function deleteProduct(id){
   if(!p){showToast('\u274c Producto no encontrado');return;}
   const msg='Eliminar "'+p.title+'"?\n\nSe borrara el producto, stock e historial de compras.';
   if(!confirm(msg))return;
+  // Delete from Supabase FIRST (before cancelEdit resets editingId)
+  _sbFetch('DELETE','products?id=eq.'+id).catch(e=>console.warn('Delete product:',e));
+  _sbFetch('DELETE','stock?product_id=eq.'+id).catch(e=>console.warn('Delete stock:',e));
   products=products.filter(function(x){return x.id!==id;});
   delete stockMap[id];delete extraMap[id];
   purchaseHistory=purchaseHistory.filter(function(x){return x.productId!==id;});
   cancelEdit();saveAll();renderAll();
-  // Delete from Supabase
-  _sbFetch('DELETE','products?id=eq.'+id).catch(e=>console.warn('Delete product:',e));
-  _sbFetch('DELETE','stock?product_id=eq.'+id).catch(e=>console.warn('Delete stock:',e));
   showToast('🗑️ Producto eliminado');
 }
 function archivarProducto(id){
