@@ -7559,7 +7559,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica inicio ($)</label>
-        <input type="number" id="v_cc_inicio" value="30000" oninput="recalcVentas()" placeholder="$0" style="padding:.32rem .5rem;font-size:.82rem">
+        <input type="number" id="v_cc_inicio" oninput="recalcVentas()" placeholder="$0" style="padding:.32rem .5rem;font-size:.82rem">
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica final ($)</label>
@@ -11386,6 +11386,7 @@ g-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"&gt
           <button class="btn btn-primary" onclick="saveProduct()">💾 Guardar</button>
           <button class="btn btn-secondary" onclick="cancelEdit()">✕ Cancelar</button>
           <button class="btn btn-danger" onclick="resetProduct()">↺ Restablecer</button>
+          ${isAdminMode?'<button class="btn btn-danger" onclick="deleteProduct(editingId)" style="font-size:.78rem;margin-left:auto">🗑️ Eliminar producto</button>':''}
         </div>
       </div>
     </div>
@@ -11441,7 +11442,6 @@ g-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"&gt
         </div>
         <div class="form-actions" style="justify-content:space-between;flex-wrap:wrap;gap:.4rem">
           <div style="display:flex;gap:.4rem">
-            <button class="btn btn-danger" onclick="deleteProduct(editingId)" style="font-size:.78rem">🗑️ Eliminar</button>
             <button class="btn" onclick="archivarProducto(editingId)" id="btn-archivar" style="font-size:.78rem;background:rgba(140,123,107,.15);color:var(--muted);border:1px solid var(--border)">📦 Archivar</button>
           </div>
           <div style="display:flex;gap:.5rem">
@@ -13831,7 +13831,7 @@ function openCartPicker(rid){
 function renderCartPickerList(q){
   const ql=q.toLowerCase();
   const list=document.getElementById('cartPickerList');if(!list)return;
-  const filtered=ql?products.filter(p=>p.title.toLowerCase().includes(ql)||p.tag.toLowerCase().includes(ql)):products;
+  const filtered=[...(ql?products.filter(p=>p.title.toLowerCase().includes(ql)||p.tag.toLowerCase().includes(ql)):products)].sort((a,b)=>a.title.localeCompare(b.title,'es'));
   list.innerHTML=`<div class="admin-item" onclick="pickCartProduct(${VINTAGE_ID})" style="border-color:rgba(155,89,182,.3)">
     <div style="width:42px;height:42px;background:rgba(155,89,182,.15);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🕰️</div>
     <div class="admin-info"><div class="nm">VINTAGE / SIN STOCK</div><div class="sp">Sin descuento de stock</div></div>
@@ -15396,7 +15396,10 @@ function deleteProduct(id){
   delete stockMap[id];delete extraMap[id];
   purchaseHistory=purchaseHistory.filter(function(x){return x.productId!==id;});
   cancelEdit();saveAll();renderAll();
-  showToast('\uD83D\uDDD1\uFE0F Producto eliminado');
+  // Delete from Supabase
+  _sbFetch('DELETE','products?id=eq.'+id).catch(e=>console.warn('Delete product:',e));
+  _sbFetch('DELETE','stock?product_id=eq.'+id).catch(e=>console.warn('Delete stock:',e));
+  showToast('🗑️ Producto eliminado');
 }
 function archivarProducto(id){
   if(!isAdminMode){showToast('❌ Solo admin');return;}
