@@ -14266,6 +14266,12 @@ function closeCierre(){document.getElementById('cierreModal').classList.remove('
 function confirmarGuardar(){
   closeCierre();
   const fecha=document.getElementById('v_fecha')?.value||todayStr();
+  // Bloquear si ya existe una jornada con la misma fecha
+  const jornadaExistente=ventasHistory.find(j=>j.fecha===fecha&&!j.anulada);
+  if(jornadaExistente){
+    showToast('❌ Ya existe una jornada para el '+fecha+'. No se puede guardar dos jornadas el mismo día.');
+    return;
+  }
   // Vendedor de jornada: el más frecuente entre los tickets del día
   const vendedoresTkts=ventaRows.map(t=>t.vendedor||'Sin especificar').filter(v=>v!=='Sin especificar');
   const vendedorCount={};vendedoresTkts.forEach(v=>vendedorCount[v]=(vendedorCount[v]||0)+1);
