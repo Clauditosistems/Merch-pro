@@ -13164,6 +13164,7 @@ async function loadFromSupabase(){
           sale2:sv.sale2||def.sale2,
           sale2_label:sv.sale2_label||def.sale2_label,
           tag:sv.tag||def.tag,
+          stock_inicial:sv.stock_inicial??def.stock_inicial??def.qty_num??0,
           barcode:sv.barcode||def.barcode||'',
           oferta:sv.oferta||def.oferta||'$0',
           provTipo:sv.provTipo||def.provTipo||'',
@@ -13188,7 +13189,11 @@ async function loadFromSupabase(){
       const s=stockData?.find(x=>x.product_id===p.id);
       stockMap[p.id]=s?s.qty:0;
     });
-    products.forEach(p=>{ p.qty_num=stockMap[p.id]!==undefined?stockMap[p.id]:0; });
+    products.forEach(p=>{
+      p.qty_num=stockMap[p.id]!==undefined?stockMap[p.id]:0;
+      // stock_inicial is fixed — only set from Supabase, never overwritten by stock movements
+      if(p.stock_inicial===undefined||p.stock_inicial===null)p.stock_inicial=p.qty_num;
+    });
     // Vintage siempre con stock infinito
     const vintP=products.find(p=>p.id===9999);
     if(vintP){ vintP.qty_num=100000; stockMap[9999]=100000; }
@@ -13337,6 +13342,8 @@ async function saveProduct(prod){
     obs:prod.obs||'',active:true,
     img1:prod.img1||'', img2:prod.img2||'', imgs:prod.imgs||[]
   };
+  // Never overwrite stock_inicial — it's fixed at creation
+  if(prod.stock_inicial!==undefined)row.stock_inicial=prod.stock_inicial;
   await _sbFetch('POST','products?on_conflict=id',row);
 }
 
@@ -13684,7 +13691,7 @@ function renderGrid(){
         </div>
         <div class="sub-sect">
           <div class="sect-title">📦 Stock</div>
-          <div class="stock-row"><label>Stock inicial</label><span>${p.qty_num} u.</span></div>
+          <div class="stock-row"><label>Stock inicial</label><span>${p.stock_inicial??p.qty_num} u.</span></div>
           <div class="stock-row"><label>Stock actual</label><span id="si-${p.id}" style="font-weight:700;color:${color}">${getStock(p.id)} u.</span></div>
           <div class="bar-bg"><div class="bar-fill" id="bar-${p.id}" style="width:${barW}%;background:${color}"></div></div>
           <div class="stock-row"><label>% restante</label><span id="pct-${p.id}" style="color:${color};font-weight:700">${pct}%</span></div>
@@ -15447,6 +15454,7 @@ function saveNewProduct(){
     oferta:ofertaVal>0?fmtM(ofertaVal):'$0',
     qty_num:qty,qty_display:qty+' unidades',total_cost:fmtM(cost*qty),single:true,img1,img2,imgs};
   newP.barcode=generateBarcode(newP.id);
+  newP.stock_inicial=fs;
   products.push(newP);stockMap[newP.id]=fs;
   extraMap[newP.id]={date:document.getElementById('np_date')?.value||'',obs:document.getElementById('np_obs')?.value||''};
   if(qty>0){
