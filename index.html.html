@@ -13545,7 +13545,7 @@ function calcProfit(p){
   const mgHigh=highP>0?Math.round(highUp/highP*100):0;
   const totalBuy=cost*qty,potSales=s1*qty,potProfit=up1*qty;
   const sold=Math.max(0,qty-getStock(p.id)),earnedProfit=up1*sold;
-  return{cost,s1,s2,qty,s1q,s2q,up1,up2,mg1,mg2,mgHigh,hasPromo,totalBuy,potSales,potProfit,sold,earnedProfit};
+  return{cost,s1,s2,qty,s1q,s2q,up1,up2,mg1,mg2,mgHigh,hasPromo,hasOferta,ofertaPrice,totalBuy,potSales,potProfit,sold,earnedProfit};
 }
 
 // ══ MODE ══════════════════════════════════════════════════════════
@@ -14017,6 +14017,10 @@ function confirmarVenta(){
 }
 function quickAddVenta(pid){
   const p=products.find(x=>x.id===pid);
+  // Advertencia si stock = 0 (no bloquea)
+  if(p&&getStock(pid)<=0){
+    showToast('⚠️ '+p.title+' tiene stock 0 — verificar inventario');
+  }
   // Pre-populate carrito with this product
   cartItems=[];cartDescType='pesos';
   const rid='ci'+Date.now();
@@ -15443,6 +15447,7 @@ function handleNpImgDrop(e){
 function saveNewProduct(){
   const title=document.getElementById('np_title')?.value.trim();if(!title){showToast('❌ Ingresá un nombre');return;}
   const cost=parseFloat(document.getElementById('np_cost')?.value)||0;
+  if(!cost||cost<=0){showToast('❌ El costo del producto es obligatorio');document.getElementById('np_cost')?.focus();return;}
   const sale1=parseFloat(document.getElementById('np_sale1')?.value)||0;
   const sale2=parseFloat(document.getElementById('np_sale2')?.value)||0;
   const ofertaVal=parseFloat(document.getElementById('np_oferta')?.value)||0;
@@ -19206,6 +19211,7 @@ function showImgModal(src, title){
   document.getElementById('imgModalImg').src = src;
   document.getElementById('imgModalTitle').textContent = title||'';
   modal.style.display = 'flex';
+  modal.style.zIndex = '999999';
 }
 
 function populateCatSelects(){
