@@ -14416,6 +14416,7 @@ function renderHistVentas(){
       <tr>
         <td style="padding:.28rem .55rem;font-size:.73rem;color:${g.tipo==='compra_usados'?'var(--purple)':'var(--muted)'}">${g.tipo==='compra_usados'?'🛍️ Usados':'💸 Gasto'}</td>
         <td style="padding:.28rem .55rem;font-size:.75rem">${g.motivo||'—'}</td>
+        <td style="padding:.28rem .55rem;font-size:.72rem">${g.pago==='efectivo'?'💵 Efectivo':'💳 Transfer.'}</td>
         <td style="padding:.28rem .55rem;font-size:.75rem;color:var(--accent);font-weight:600">${fmtM(g.importe||0)}</td>
       </tr>`).join('');
     const jid='jd-'+j.id;
@@ -18002,6 +18003,7 @@ function updateObjetivo(){
 }
 
 function editarObjetivo(){
+  if(!isAdminMode){showToast('❌ Solo el administrador puede modificar el objetivo');return;}
   const nuevo=prompt('Meta diaria de ventas ($):',objetivoDiario);
   if(nuevo===null)return;
   const n=parseFloat(nuevo);
