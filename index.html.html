@@ -19204,8 +19204,8 @@ function showImgModal(src, title){
     modal = document.createElement('div');
     modal.id = 'imgModal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
-    modal.innerHTML = '<div style="text-align:center;max-width:90vw;max-height:90vh"><img id="imgModalImg" style="max-width:88vw;max-height:78vh;border-radius:12px;object-fit:contain"><div id="imgModalTitle" style="color:#fff;margin-top:10px;font-size:.95rem;font-weight:600"></div><div style="color:#aaa;font-size:.75rem;margin-top:4px">Tocá para cerrar</div></div>';
-    modal.onclick = () => modal.style.display='none';
+    modal.innerHTML = '<div style="text-align:center;max-width:96vw;max-height:96vh"><img id="imgModalImg" style="max-width:94vw;max-height:88vh;border-radius:12px;object-fit:contain;cursor:zoom-in;transition:transform .2s" onclick="event.stopPropagation();this._zoomed=!this._zoomed;this.style.transform=this._zoomed?\"scale(1.9)\":\"scale(1)\";this.style.cursor=this._zoomed?\"zoom-out\":\"zoom-in\""><div id="imgModalTitle" style="color:#fff;margin-top:10px;font-size:.95rem;font-weight:600"></div><div style="color:#aaa;font-size:.75rem;margin-top:4px">Tocá la imagen para zoom · tocá fuera para cerrar</div></div>';
+    modal.onclick = (e) => { if(e.target===modal){const img=modal.querySelector('img');if(img){img._zoomed=false;img.style.transform='scale(1)';}modal.style.display='none';} };
     document.body.appendChild(modal);
   }
   document.getElementById('imgModalImg').src = src;
