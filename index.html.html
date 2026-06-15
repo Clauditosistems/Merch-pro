@@ -141,6 +141,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .edit-log-title{color:var(--blue);font-weight:700;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.22rem}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:1.2rem 1rem;overflow-y:auto}
 .modal-overlay.open{display:flex!important;z-index:99999!important}
+.money-prefix{position:relative;display:inline-flex;align-items:center}
+.money-prefix::before{content:'$';position:absolute;left:.4rem;color:var(--muted);font-size:.82rem;pointer-events:none}
+.money-prefix input{padding-left:1.2rem!important}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:860px;padding:1.5rem;margin:auto}
 .modal-sm{max-width:520px}
 .modal-lg{max-width:1100px}
@@ -7560,11 +7563,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="vfield" style="min-width:140px;flex:1">
         <label style="font-size:.65rem">Caja chica final ($)</label>
-        <input type="number" id="v_cc_final" value="0" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
+        <input type="number" id="v_cc_final" value="" placeholder="$0" oninput="recalcVentas()" style="padding:.32rem .5rem;font-size:.82rem">
       </div>
       <div class="vfield" style="min-width:160px;flex:2">
         <label style="color:var(--yellow);font-weight:800;font-size:.72rem;letter-spacing:.03em">⚠️ EFECTIVO REAL — OBLIGATORIO</label>
-        <input type="number" id="v_efec_real" value="0" oninput="recalcVentas()" placeholder="Contá los billetes..." style="border:2px solid var(--yellow)!important;background:rgba(244,196,48,.07)!important;padding:.32rem .5rem;font-size:.88rem;color:var(--text);width:100%;font-family:'DM Sans',sans-serif;border-radius:7px">
+        <input type="number" id="v_efec_real" value="" placeholder="$0 — contá los billetes..." style="border:2px solid var(--yellow)!important;background:rgba(244,196,48,.07)!important;padding:.32rem .5rem;font-size:.88rem;color:var(--text);width:100%;font-family:'DM Sans',sans-serif;border-radius:7px">
       </div>
       <div class="vfield" style="min-width:180px;flex:2">
         <label style="font-size:.65rem">Observaciones</label>
@@ -12146,7 +12149,7 @@ g-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"&gt
   <div class="modal modal-sm" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title">🔍 SELECCIONAR PRODUCTO</div>
-      <button class="modal-close" onclick="document.getElementById('cartPickerModal').classList.remove('open');document.body.style.overflow=''">✕</button>
+      <button class="modal-close" onclick="document.getElementById('cartPickerModal').classList.remove('open');document.getElementById('cartPickerModal').style.display='';document.body.style.overflow=''">✕</button>
     </div>
     <input type="text" id="cartPickerSearch" placeholder="Buscar por nombre o categoría..." oninput="renderCartPickerList(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:.45rem .75rem;font-size:.83rem;font-family:'DM Sans',sans-serif;margin-bottom:.75rem">
     <div id="cartPickerList" class="admin-list" style="max-height:360px"><div class="admin-item" onclick="pickCartProduct(9999)" style="border-color:rgba(155,89,182,.3)">
@@ -13653,7 +13656,7 @@ function renderGrid(){
   let html='';
   const searchQ=(document.getElementById('stockSearch')?.value||'').toLowerCase().trim();
   const currentTagFilter=(document.getElementById('stock-tag-filter')?.value)||'';
-  products.filter(p=>!currentProvFilter||p.provTipo===currentProvFilter).forEach(p=>{
+  [...products].filter(p=>!currentProvFilter||p.provTipo===currentProvFilter).sort((a,b)=>a.title.localeCompare(b.title,'es')).forEach(p=>{
     const pct=getStockPct(p.id),st=getStatus(pct),color=getBarColor(st),barW=Math.min(pct,100);
     // Filtro archivados: si filtro es 'archivado' solo muestra archivados; si no, oculta archivados
     if(currentFilter==='archivado'){if(!p.archivado)return;}
@@ -13669,7 +13672,7 @@ function renderGrid(){
     const img2=hasTwo?`<img src="${allImgs[1]}" alt="">`:'';
     const ao=isAdminMode?'':'display:none';
     html+=`<div class="card stock-${st}" id="card-${p.id}">
-      <div class="card-imgs ${imgCls}" onclick="openProductDetail(${p.id})" style="cursor:pointer"><img src="${allImgs[0]||p.img1}" alt="">${img2}</div>
+      <div class="card-imgs ${imgCls}" style="cursor:pointer"><img src="${allImgs[0]||p.img1}" alt="" onclick="event.stopPropagation();if(this.src)showImgModal(this.src,'${p.title.replace(/'/g,'\\'')}')" style="cursor:zoom-in">${img2.replace('<img ','<img onclick=\"event.stopPropagation();if(this.src)showImgModal(this.src,\'' + p.title.replace(/'/g,\"\\\\'\")+'\')\" style=\"cursor:zoom-in\" ')}</div>
       <div class="card-body">
         <div class="tag">${p.tag}</div><div class="card-title">${p.title}</div>
         ${isAdminMode?`${isAdminMode?`<div class="card-supplier">${p.supplier}${p.provTipo?` <span style="font-size:.6rem;background:rgba(74,158,255,.12);color:var(--blue);border-radius:4px;padding:.08rem .3rem;margin-left:.3rem">${p.provTipo}</span>`:''}</div>`:''}`:''}
@@ -13929,6 +13932,7 @@ function renderCartTable(){
       <td style="white-space:nowrap">
         <input type="number" min="0" value="${item.price}" style="width:72px"
           oninput="cartItems.find(x=>x.rid==='${item.rid}').price=+this.value||0;recalcCarrito()"
+          onfocus="if(this.value==='0')this.value=''"
           onblur="renderCartTable()">
         ${(()=>{const _p=products.find(x=>x.id===item.productId);const _o=_p?parseMoney(_p.oferta||'0'):0;return _o>0?`<button title="Aplicar precio oferta: ${_p.oferta}" onclick="cartItems.find(x=>x.rid==='${item.rid}').price=${_o};renderCartTable();recalcCarrito()" style="background:var(--orange);color:#fff;border:none;border-radius:4px;padding:.15rem .3rem;font-size:.65rem;cursor:pointer;margin-left:2px">🏷️</button>`:''})()}
       </td>
@@ -14049,7 +14053,10 @@ function renderTicketsDelDia(){
         <div>
           <span class="ticket-client">👤 ${tk.cliente}</span>
           ${tk.vendedor&&tk.vendedor!=='Sin especificar'?`<span style="font-size:.68rem;color:var(--purple);margin-left:.4rem;background:rgba(155,89,182,.15);border-radius:4px;padding:.1rem .35rem">${tk.vendedor}</span>`:''}
-          <span style="font-size:.71rem;color:var(--muted);margin-left:.55rem">${tk.medio==='efectivo'?'💵 Efectivo':'💳 Transfer.'}</span>
+          <span style="font-size:.71rem;color:var(--muted);margin-left:.55rem"><select onchange="editTicketMedio(${i},this.value)" style="font-size:.7rem;padding:.15rem .3rem;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer">
+            <option value="efectivo" ${tk.medio==='efectivo'?'selected':''}>💵 Efectivo</option>
+            <option value="transferencia" ${tk.medio==='transferencia'?'selected':''}>💳 Transfer.</option>
+          </select>
           ${tk.descPesos>0?`<span style="font-size:.71rem;color:var(--accent);margin-left:.4rem">-${fmtM(tk.descPesos)}</span>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:.45rem">
@@ -14274,6 +14281,19 @@ function confirmarGuardar(){
   const jornadaExistente=ventasHistory.find(j=>j.fecha===fecha&&!j.anulada);
   if(jornadaExistente){
     showToast('❌ Ya existe una jornada para el '+fecha+'. No se puede guardar dos jornadas el mismo día.');
+    return;
+  }
+  // Efectivo real y caja chica obligatorios
+  const _efecReal=document.getElementById('v_efec_real')?.value;
+  const _ccFinal=document.getElementById('v_cc_final')?.value;
+  if(!_efecReal||_efecReal===''||isNaN(parseFloat(_efecReal))){
+    showToast('❌ Ingresá el efectivo real contado');
+    document.getElementById('v_efec_real')?.focus();
+    return;
+  }
+  if(!_ccFinal||_ccFinal===''||isNaN(parseFloat(_ccFinal))){
+    showToast('❌ Ingresá el saldo de caja chica');
+    document.getElementById('v_cc_final')?.focus();
     return;
   }
   // Vendedor de jornada: el más frecuente entre los tickets del día
@@ -18408,7 +18428,7 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
   <div class="modal modal-sm" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title">🔍 SELECCIONAR PRODUCTO</div>
-      <button class="modal-close" onclick="document.getElementById('cartPickerModal').classList.remove('open');document.body.style.overflow=''">✕</button>
+      <button class="modal-close" onclick="document.getElementById('cartPickerModal').classList.remove('open');document.getElementById('cartPickerModal').style.display='';document.body.style.overflow=''">✕</button>
     </div>
     <input type="text" id="cartPickerSearch" placeholder="Buscar por nombre o categoría..." oninput="renderCartPickerList(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:.45rem .75rem;font-size:.83rem;font-family:'DM Sans',sans-serif;margin-bottom:.75rem">
     <div id="cartPickerList" class="admin-list" style="max-height:360px"><div class="admin-item" onclick="pickCartProduct(9999)" style="border-color:rgba(155,89,182,.3)">
@@ -19096,6 +19116,10 @@ async function cargarDesdeExcel(){
     let added=0,errors=0;
     for(const row of rows){
       const titulo=row.titulo||row.title||row.nombre||'';
+      if(!titulo){errors++;console.warn('Fila sin título, omitida');continue;}
+      // Error si ya existe un producto con el mismo título
+      const duplicado=products.find(p=>p.title.trim().toLowerCase()===titulo.trim().toLowerCase());
+      if(duplicado){errors++;showToast('⚠️ Ya existe: "'+titulo+'" — omitido');continue;}
       const costo=parseFloat(String(row.costo||'0').replace(/[.$,]/g,''))||0;
       const cantidad=parseInt(row.cantidad||row.qty||'0')||0;
       const rubro=row.rubro||row.tag||'General';
@@ -19118,7 +19142,7 @@ async function cargarDesdeExcel(){
       }catch(err){errors++;console.warn('Error:',err);}
     }
     log.innerHTML=`<span style="color:var(--green)">✅ ${added} productos</span>${errors>0?` <span style="color:var(--red)">· ${errors} errores</span>`:''}`;
-    saveAll();renderAll();showToast('✅ '+added+' productos cargados');
+    saveAll();renderAll();showToast('✅ '+added+' cargados'+(errors>0?' · ⚠️ '+errors+' omitidos':''));
   };
   const reader=new FileReader();
   reader.onerror=()=>{log.innerHTML='<span style="color:var(--red)">Error leyendo archivo</span>';};
@@ -19333,6 +19357,17 @@ function _syncProductToSupabase(p){
   if(p.stock_inicial!==undefined)row.stock_inicial=p.stock_inicial;
   _sbFetch('POST','products?on_conflict=id',row)
     .catch(e=>console.warn('Sync product error:',e.message));
+}
+
+function editTicketMedio(idx, newMedio){
+  if(!ventaRows[idx])return;
+  const tk = ventaRows[idx];
+  const oldMedio = tk.medio;
+  tk.medio = newMedio;
+  // Recalculate totals - efectivo/transferencia affects caja
+  recalcVentas();
+  autoSavePendingJornada();
+  showToast('✅ Medio de pago actualizado');
 }
 </script>
 </body></html>
