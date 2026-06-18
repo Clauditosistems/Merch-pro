@@ -14986,7 +14986,7 @@ function renderHistVentas(){
       <div class="hjornada-header">
         <div style="flex:1">
           <div class="hjornada-title" style="cursor:pointer" onclick="toggleJornada('${jid}')">
-            📅 ${j.fecha} — <span style="color:var(--purple)">${j.vendedor||'—'}</span> ${anB}
+            📅 <span onclick="event.stopPropagation();editarFechaJornada('${j.id}','${j.fecha}')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" title="Click para editar fecha">${j.fecha}</span> — <span style="color:var(--purple)">${j.vendedor||'—'}</span> ${anB}
             <span id="arr-${jid}" style="font-size:.8rem;color:var(--muted);transition:transform .2s;display:inline-block">▼</span>
           </div>
           <!-- Métricas financieras rápidas -->
@@ -19936,6 +19936,20 @@ function editTicketMedio(idx, newMedio){
   recalcVentas();
   autoSavePendingJornada();
   showToast('✅ Medio de pago actualizado');
+}
+
+function editarFechaJornada(jid, fechaActual){
+  if(!isAdminMode){showToast('❌ Solo admin');return;}
+  const nueva=prompt('Nueva fecha (YYYY-MM-DD):', fechaActual);
+  if(!nueva||nueva===fechaActual)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nueva)){showToast('❌ Formato inválido. Usá YYYY-MM-DD');return;}
+  const j=ventasHistory.find(x=>x.id===jid);
+  if(!j){showToast('❌ Jornada no encontrada');return;}
+  j.fecha=nueva;
+  _sbFetch('POST','jornadas?on_conflict=id',{id:jid,fecha:nueva})
+    .catch(e=>console.warn('Error updating fecha:',e));
+  renderHistVentas();
+  showToast('✅ Fecha actualizada a '+nueva);
 }
 </script>
 </body></html>
