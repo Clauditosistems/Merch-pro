@@ -15948,8 +15948,50 @@ function saveProduct(){
   if(editImgs.length>0){p.img1=editImgs[0].src;p.img2=editImgs.length>1?editImgs[1].src:'';p.imgs=editImgs.map(x=>x.src);}
   extraMap[p.id]={date:document.getElementById('f_date')?.value||'',obs:document.getElementById('f_obs')?.value||''};
   saveAll();renderAll();cancelEdit();showToast('✅ Guardado correctamente');
-  // Save to Supabase directly (avoids naming conflict with saveProduct UI function)
-  _syncProductToSupabase(p);
+  // Subir imágenes base64 a Storage antes de sincronizar (nunca guardar base64 en la DB)
+  _uploadImagesAndSync(p);
+}
+
+async function _uploadImagesAndSync(p){
+  try{
+    const allImgs=(p.imgs&&p.imgs.length)?p.imgs:[p.img1,p.img2].filter(Boolean);
+    const newUrls=[];
+    for(let i=0;i<allImgs.length;i++){
+      const src=allImgs[i];
+      if(!src||!src.startsWith('data:')){newUrls.push(src);continue;}
+      try{
+        const res=await fetch(src);
+        const blob=await res.blob();
+        const ext=blob.type.includes('png')?'png':'jpg';
+        const fileName='product-'+p.id+'-'+i+'-'+Date.now()+'.'+ext;
+        const token=supa.supabaseKey;
+        let authToken=token;
+        try{
+          const ls=localStorage.getItem('sb-kxtidabdmrlbxzhhvxdz-auth-token');
+          if(ls){const pp=JSON.parse(ls);authToken=pp?.access_token||token;}
+        }catch(e){}
+        const uploadRes=await fetch(supa.supabaseUrl+'/storage/v1/object/product-images/'+fileName,{
+          method:'POST',
+          headers:{'Authorization':'Bearer '+authToken,'x-upsert':'true'},
+          body:blob
+        });
+        if(!uploadRes.ok)throw new Error(await uploadRes.text());
+        const publicUrl=supa.supabaseUrl+'/storage/v1/object/public/product-images/'+fileName;
+        newUrls.push(publicUrl);
+      }catch(e){
+        console.warn('Error subiendo imagen a Storage:',e.message);
+        newUrls.push(''); // no guardar base64 nunca
+      }
+    }
+    p.img1=newUrls[0]||'';
+    p.img2=newUrls[1]||'';
+    p.imgs=newUrls.filter(Boolean);
+    saveAll();renderAll();
+    _syncProductToSupabase(p);
+  }catch(e){
+    console.warn('Error en _uploadImagesAndSync:',e);
+    showToast('⚠️ Error subiendo imágenes — revisar conexión');
+  }
 }
 function deleteProduct(id){
   if(!isAdminMode){showToast('\u274c Solo admin');return;}
