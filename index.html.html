@@ -14088,8 +14088,9 @@ function _syncStockSupabase(){
 function getStock(id){return stockMap[id]??(products.find(p=>p.id===id)?.qty_num||0);}
 function getStockPct(id){
   const p=products.find(x=>x.id===id);
-  if(!p||p.qty_num===0)return 100;
-  return Math.round((getStock(id)/p.qty_num)*100);
+  const inicial=p?.stock_inicial??p?.qty_num??0;
+  if(!p||inicial===0)return 100;
+  return Math.round((getStock(id)/inicial)*100);
 }
 function getStatus(pct){return pct<30?'alert':pct<60?'medium':'ok';}
 function getBarColor(st){return st==='alert'?'#e63946':st==='medium'?'#f4a020':'#43b97f';}
