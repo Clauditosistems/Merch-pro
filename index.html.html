@@ -466,6 +466,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="stockAdminBtns" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
       <button class="nbtn green" onclick="openNewProduct()">➕ Nuevo producto</button>
       <button class="nbtn" onclick="openAjusteStock()">📋 Ajuste de stock</button>
+      <button class="nbtn" id="carritoComprasBtn" onclick="abrirCarritoCompras()" style="position:relative">🛒 Carrito de compras <span id="carritoComprasCount" style="background:var(--accent);color:#fff;border-radius:10px;padding:.05rem .4rem;font-size:.7rem;margin-left:.2rem">0</span></button>
     </div>
   </div>
   <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
@@ -11019,6 +11020,18 @@ g-excel-preview" style="margin-top:.8rem;font-size:.85rem;color:var(--muted)"&gt
   </div>
 </div>
 
+<!-- ═══ MODAL: CARRITO DE COMPRAS ═══ -->
+<div class="modal-overlay" id="carritoComprasModal">
+  <div class="modal" style="max-width:680px;max-height:90vh">
+    <div class="modal-header">
+      <div class="modal-title">🛒 CARRITO DE COMPRAS</div>
+      <button class="modal-close" onclick="closeCarritoCompras()">✕</button>
+    </div>
+    <div id="carritoComprasBody" style="max-height:55vh;overflow-y:auto;margin-bottom:.8rem"></div>
+    <div id="carritoComprasFooter" style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--border);padding-top:.7rem"></div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: AJUSTE DE STOCK ═══ -->
 <div class="modal-overlay" id="ajusteStockModal">
   <div class="modal" style="max-width:860px;max-height:95vh">
@@ -13836,6 +13849,7 @@ async function loadFromSupabase(){
     try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){
       if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;}}catch(e){}
     showToast('✅ Datos cargados');
+    await _cargarCarritoCompras();
     renderAll();
     updateModeUI();
     restorePendingJornada();
@@ -14276,7 +14290,7 @@ function renderGrid(){
         </div>
         <div class="card-btns">
           <button class="cbtn green" onclick="quickAddVenta(${p.id})">🛒 Vender</button>
-          <button class="cbtn admin-only" onclick="openNewPurchase(${p.id})" style="${ao}">📦 Comprar</button>
+          <button class="cbtn admin-only" onclick="agregarACarritoCompras(${p.id})" style="${ao}">🛒 Carrito de compras</button>
           <button class="cbtn admin-only" onclick="openHistory(${p.id})" style="${ao}">📋 Historial</button>
         </div>
         <div style="margin-top:.5rem;text-align:center;font-family:monospace;font-size:.62rem;color:var(--muted);letter-spacing:.12em;cursor:pointer" onclick="openProductDetail(${p.id})" title="Ver detalle">🔖 ${getBarcodeForProduct(p)}</div>
@@ -19993,6 +20007,244 @@ function editarFechaJornada(jid, fechaActual){
     .catch(e=>console.warn('Error updating fecha:',e));
   renderHistVentas();
   showToast('✅ Fecha actualizada a '+nueva);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CARRITO DE COMPRAS (reposición de stock)
+// ══════════════════════════════════════════════════════════════════
+let carritoCompras = {id:'main', estado:'armando', items:[]};
+
+async function _cargarCarritoCompras(){
+  if(!currentUser||currentUser.email==='local'){actualizarBadgeCarrito();return;}
+  try{
+    const r = await _sbFetch('GET','carrito_compras?id=eq.main&limit=1');
+    if(r && r[0]){
+      carritoCompras = {id:r[0].id, estado:r[0].estado||'armando', items:r[0].items||[]};
+    }
+  }catch(e){console.warn('Error cargando carrito de compras:',e);}
+  actualizarBadgeCarrito();
+}
+
+function _guardarCarritoCompras(){
+  if(!currentUser||currentUser.email==='local')return;
+  _sbFetch('POST','carrito_compras?on_conflict=id',{
+    id:'main', estado:carritoCompras.estado, items:carritoCompras.items,
+    updated_at:new Date().toISOString()
+  }).catch(e=>console.warn('Error guardando carrito de compras:',e));
+}
+
+function actualizarBadgeCarrito(){
+  const el = document.getElementById('carritoComprasCount');
+  if(el) el.textContent = carritoCompras.items.reduce((s,i)=>s+(i.qty||0),0);
+  const btn = document.getElementById('carritoComprasBtn');
+  if(btn) btn.style.display = isAdminMode ? '' : 'none';
+}
+
+function agregarACarritoCompras(pid){
+  if(!isAdminMode){showToast('❌ Solo admin');return;}
+  const p = products.find(x=>x.id===pid);
+  if(!p){showToast('❌ Producto no encontrado');return;}
+  const existing = carritoCompras.items.find(i=>i.productId===pid);
+  if(existing){ existing.qty=(existing.qty||0)+1; }
+  else{ carritoCompras.items.push({productId:pid, qty:1}); }
+  _guardarCarritoCompras();
+  actualizarBadgeCarrito();
+  showToast('🛒 '+p.title+' agregado al carrito de compras');
+}
+
+function cambiarQtyCarritoItem(pid, val){
+  const it = carritoCompras.items.find(i=>i.productId===pid);
+  if(!it) return;
+  const n = parseInt(val)||1;
+  it.qty = Math.max(1,n);
+  _guardarCarritoCompras();
+  actualizarBadgeCarrito();
+}
+
+function quitarDelCarrito(pid){
+  carritoCompras.items = carritoCompras.items.filter(i=>i.productId!==pid);
+  _guardarCarritoCompras();
+  actualizarBadgeCarrito();
+  renderCarritoComprasModal();
+}
+
+function abrirCarritoCompras(){
+  if(!isAdminMode){showToast('❌ Solo admin');return;}
+  renderCarritoComprasModal();
+  const m = document.getElementById('carritoComprasModal');
+  if(!m)return;
+  m.classList.add('open'); m.style.display='flex'; m.style.zIndex='99999';
+  document.body.style.overflow='hidden';
+}
+
+function closeCarritoCompras(){
+  const m = document.getElementById('carritoComprasModal');
+  if(!m)return;
+  m.classList.remove('open'); m.style.display=''; document.body.style.overflow='';
+}
+
+function renderCarritoComprasModal(){
+  const body = document.getElementById('carritoComprasBody');
+  const footer = document.getElementById('carritoComprasFooter');
+  if(!body||!footer)return;
+
+  if(!carritoCompras.items.length){
+    body.innerHTML = '<p style="text-align:center;color:var(--muted);padding:2rem">Carrito vacío. Agregá productos desde la pestaña Stock con el botón "🛒 Carrito de compras" en cada tarjeta.</p>';
+    footer.innerHTML = '';
+    return;
+  }
+
+  const enCurso = carritoCompras.estado==='en_curso';
+  const rows = carritoCompras.items.map(it=>{
+    const p = products.find(x=>x.id===it.productId);
+    if(!p) return '';
+    const img = (p.imgs&&p.imgs[0])||p.img1||'';
+    const imgHtml = img?`<img src="${img}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:var(--surface2)">`:`<div style="width:48px;height:48px;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.2rem">📦</div>`;
+    return `<div style="display:flex;gap:.6rem;align-items:center;padding:.5rem;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      ${imgHtml}
+      <div style="flex:1;min-width:140px">
+        <div style="font-weight:600;font-size:.85rem">${p.title}</div>
+        <div style="font-size:.7rem;color:var(--muted)">${p.supplier||'Sin proveedor'} · Costo actual: ${p.cost}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.1rem">
+        <label style="font-size:.62rem;color:var(--muted)">Cant.</label>
+        <input type="number" min="1" value="${it.qty}" id="carrito-qty-${p.id}" onchange="cambiarQtyCarritoItem(${p.id},this.value)" style="width:55px;padding:.3rem;text-align:center;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+      </div>
+      ${enCurso?`<div style="display:flex;flex-direction:column;align-items:center;gap:.1rem">
+        <label style="font-size:.62rem;color:var(--muted)">Costo real</label>
+        <input type="number" min="0" id="carrito-costo-${p.id}" value="${parseMoney(p.cost)}" style="width:90px;padding:.3rem;text-align:center;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+      </div>`:''}
+      <button class="del-btn" onclick="quitarDelCarrito(${p.id})">✕</button>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `<div style="margin-bottom:.5rem;padding:.4rem .6rem;border-radius:6px;font-size:.75rem;background:${enCurso?'rgba(255,193,7,.12)':'rgba(74,158,255,.12)'};color:${enCurso?'#b8860b':'var(--blue)'}">${enCurso?'🟡 Carrito en curso — ajustá cantidades y costos reales antes de confirmar la compra':'🛠️ Armando carrito — agregá productos y ajustá cantidades'}</div>${rows}`;
+
+  if(!enCurso){
+    footer.innerHTML = `<button class="btn btn-primary" onclick="confirmarListadoCarrito()">📋 Confirmar y generar listado</button>`;
+  } else {
+    footer.innerHTML = `<button class="btn" onclick="reDescargarListadoCarrito()">📄 Volver a descargar listado</button>
+      <button class="btn btn-primary" onclick="confirmarCompraRealizada()">✅ Confirmar compra realizada</button>`;
+  }
+}
+
+function confirmarListadoCarrito(){
+  if(!carritoCompras.items.length){showToast('❌ El carrito está vacío');return;}
+  carritoCompras.estado='en_curso';
+  carritoCompras.fecha_confirmado=new Date().toISOString();
+  _guardarCarritoCompras();
+  _descargarListadoCarrito();
+  renderCarritoComprasModal();
+  showToast('✅ Listado generado — carrito puesto en curso');
+}
+
+function reDescargarListadoCarrito(){
+  _descargarListadoCarrito();
+}
+
+function _descargarListadoCarrito(){
+  if(!carritoCompras.items.length){showToast('❌ El carrito está vacío');return;}
+  const grupos={};
+  carritoCompras.items.forEach(it=>{
+    const p=products.find(x=>x.id===it.productId);
+    if(!p)return;
+    const sup=p.supplier||'Sin proveedor';
+    if(!grupos[sup])grupos[sup]=[];
+    grupos[sup].push({p,qty:it.qty});
+  });
+
+  let totalGeneral=0;
+  const gruposHtml=Object.entries(grupos).map(([supName,items])=>{
+    const prov=proveedores.find(pr=>(pr.nombre||'').trim().toLowerCase()===supName.trim().toLowerCase());
+    const contactInfo=prov?`<div style="font-size:13px;color:#555;margin-bottom:8px">${prov.dir?'📍 '+prov.dir:''}${prov.tel?' &nbsp;·&nbsp; 📞 '+prov.tel:''}</div>`:'';
+    let subtotal=0;
+    const filas=items.map(({p,qty})=>{
+      const costo=parseMoney(p.cost);
+      const sub=costo*qty;
+      subtotal+=sub;
+      const img=(p.imgs&&p.imgs[0])||p.img1||'';
+      const imgTag=img?`<img src="${img}" style="width:50px;height:50px;object-fit:cover;border-radius:4px">`:'—';
+      return `<tr>
+        <td style="padding:6px;border:1px solid #ddd;text-align:center">${imgTag}</td>
+        <td style="padding:6px;border:1px solid #ddd">${p.title}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:center">${qty}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right">${fmtM(costo)}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right">${fmtM(sub)}</td>
+      </tr>`;
+    }).join('');
+    totalGeneral+=subtotal;
+    return `<div style="margin-bottom:24px;page-break-inside:avoid">
+      <h3 style="background:#f0f0f0;padding:8px;border-radius:6px;margin-bottom:4px;font-family:Arial,sans-serif">🏭 ${supName}</h3>
+      ${contactInfo}
+      <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial,sans-serif">
+        <thead><tr style="background:#fafafa">
+          <th style="padding:6px;border:1px solid #ddd">Foto</th>
+          <th style="padding:6px;border:1px solid #ddd">Producto</th>
+          <th style="padding:6px;border:1px solid #ddd">Cant.</th>
+          <th style="padding:6px;border:1px solid #ddd">Costo ref.</th>
+          <th style="padding:6px;border:1px solid #ddd">Subtotal</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+      <div style="text-align:right;font-weight:700;margin-top:4px;font-family:Arial,sans-serif">Subtotal proveedor: ${fmtM(subtotal)}</div>
+    </div>`;
+  }).join('');
+
+  const fecha=new Date().toLocaleDateString('es-AR');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Listado de Compras - ${fecha}</title>
+  <style>body{font-family:Arial,sans-serif;padding:20px;color:#222;max-width:900px;margin:0 auto}@media print{button{display:none}}</style>
+  </head><body>
+  <h1 style="font-family:Arial,sans-serif;font-size:22px">🛒 Listado de Compras — ${fecha}</h1>
+  <p style="color:#666;margin-bottom:20px">Costo de referencia (puede variar al momento de comprar)</p>
+  ${gruposHtml}
+  <div style="text-align:right;font-size:18px;font-weight:700;margin-top:20px;border-top:2px solid #333;padding-top:10px">TOTAL ESTIMADO: ${fmtM(totalGeneral)}</div>
+  <p style="margin-top:30px;color:#888;font-size:12px">Generado desde Merch Pro</p>
+  </body></html>`;
+
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='listado-compras-'+todayStr()+'.html';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  showToast('📄 Listado descargado — abrilo y guardalo como PDF con Ctrl+P');
+}
+
+function confirmarCompraRealizada(){
+  if(!carritoCompras.items.length){showToast('❌ El carrito está vacío');return;}
+  if(!confirm('¿Confirmar la compra de '+carritoCompras.items.length+' producto(s)? Esto actualizará el stock y quedará registrado en el historial de compras.'))return;
+
+  let registrados=0;
+  carritoCompras.items.forEach(it=>{
+    const p=products.find(x=>x.id===it.productId);
+    if(!p)return;
+    const qtyInput=document.getElementById('carrito-qty-'+p.id);
+    const qty=qtyInput?(parseInt(qtyInput.value)||it.qty):it.qty;
+    const costoInput=document.getElementById('carrito-costo-'+p.id);
+    const costoReal=costoInput?(parseFloat(costoInput.value)||parseMoney(p.cost)):parseMoney(p.cost);
+
+    const ph={id:Date.now()+Math.random(),productId:p.id,productTitle:p.title,date:todayStr(),qty,cost:costoReal,sale1:parseMoney(p.sale1),sale2:parseMoney(p.sale2),note:'Compra vía carrito de compras',pago:'efectivo'};
+    purchaseHistory.push(ph);
+    savePurchase(ph).catch(e=>console.warn('savePurchase:',e));
+
+    if(Math.abs(costoReal-parseMoney(p.cost))>1){
+      p.cost=fmtM(costoReal);
+    }
+    p.qty_num=(p.qty_num||0)+qty;
+    p.qty_display=p.qty_num+' unidades';
+    p.total_cost=fmtM(parseMoney(p.cost)*p.qty_num);
+    stockMap[p.id]=(stockMap[p.id]||0)+qty;
+    _syncProductToSupabase(p);
+    registrados++;
+  });
+
+  saveAll();renderAll();
+
+  carritoCompras={id:'main',estado:'armando',items:[]};
+  _guardarCarritoCompras();
+  actualizarBadgeCarrito();
+  closeCarritoCompras();
+  showToast(`✅ Compra registrada: ${registrados} producto(s) actualizados`);
 }
 </script>
 </body></html>
