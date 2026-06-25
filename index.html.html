@@ -15,6 +15,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
 .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:.65rem 1.2rem;display:flex;align-items:center;gap:.8rem;position:sticky;top:0;z-index:500;flex-wrap:wrap}
+.sticky-panel{position:sticky;z-index:45;background:var(--bg);padding-bottom:.7rem;margin-bottom:.3rem}
 .nav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.55rem;letter-spacing:.06em;flex:1;min-width:120px}
 .nav-logo span{color:var(--accent)}
 .nav-tabs{display:flex;gap:.3rem;flex-wrap:wrap}
@@ -461,6 +462,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- ═══ STOCK ═══ -->
 <section class="page" id="page-stock">
+  <div class="sticky-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1.1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">📦 CONTROL DE STOCK</h2>
     <div id="stockAdminBtns" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
@@ -495,6 +497,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <button class="filter-btn" data-filter="ok" onclick="setFilter('ok',this)">✅ Suf. (146)</button>
       <button class="filter-btn" data-filter="archivado" onclick="setFilter('archivado',this)" style="opacity:.75">📦 Archivados</button>
     </div>
+  </div>
   </div>
   <div class="grid" id="productGrid"><div class="card stock-ok" id="card-10088">
       <div class="card-imgs single" onclick="if(event.target.tagName==='IMG'&amp;&amp;event.target.src){showImgModal(event.target.src,this.dataset.title)}" data-title="BILLETERA HOMBRE COSME" style="cursor:pointer"><img src="https://kxtidabdmrlbxzhhvxdz.supabase.co/storage/v1/object/public/product-images/product-10088-0-1781835437277.jpg" alt="" style="cursor:zoom-in"></div>
@@ -8505,6 +8508,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- ═══ VENTAS ═══ -->
 <section class="page" id="page-ventas">
+  <div class="sticky-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">🛒 VENTAS DEL DÍA</h2>
     <div class="cc-btns" style="display:flex;align-items:center;gap:.5rem">
@@ -8539,6 +8543,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <input type="text" id="v_obs_dia" placeholder="Notas del día..." style="padding:.32rem .5rem;font-size:.82rem">
       </div>
     </div>
+  </div>
   </div>
 
   <!-- SEMÁFORO OBJETIVO DIARIO -->
@@ -8611,6 +8616,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- ═══ HISTORIAL DE JORNADAS ═══ -->
 <section class="page" id="page-histVentas">
+  <div class="sticky-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.85rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">📋 HISTORIAL DE JORNADAS</h2>
     <span id="histVentasMode" style="color:var(--muted);font-size:.76rem">Admin: podés anular y editar jornadas</span>
@@ -8624,6 +8630,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <input type="date" id="histHasta" onchange="renderHistVentas()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.35rem .5rem;font-size:.78rem;font-family:'DM Sans',sans-serif">
     <button onclick="document.getElementById('histDesde').value='';document.getElementById('histHasta').value='';document.getElementById('histSearch').value='';renderHistVentas()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:.3rem .55rem;font-size:.72rem;cursor:pointer">✕ Limpiar</button>
     <span id="histCount" style="font-size:.73rem;color:var(--muted)">3 jornadas</span>
+  </div>
   </div>
   <div id="histJornadasList"><div class="hjornada ">
       <div class="hjornada-header">
@@ -9217,6 +9224,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- ═══ COMPRAS (admin) ═══ -->
 <section class="page" id="page-compras">
+  <div class="sticky-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">🧾 HISTORIAL DE COMPRAS</h2>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap">
@@ -9235,6 +9243,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <input type="date" id="comprasDateTo" onchange="renderComprasHist()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.38rem .5rem;font-size:.77rem;font-family:'DM Sans',sans-serif">
     </div>
     <span id="comprasCount" style="font-size:.73rem;color:var(--muted)">49 compras · Total: $5.735.200</span>
+  </div>
   </div>
   <div id="comprasHistList"><div class="caja-hist-card" style="margin-bottom:.55rem">
       <div onclick="toggleComprasDay('cg-20260525')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem">
@@ -11109,9 +11118,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </section>
 
 <section class="page" id="page-cajaIvo">
+  <div class="sticky-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">💰 CAJA IVO</h2>
     <span style="font-size:.75rem;color:var(--muted)">🔒 Solo administrador · Solo efectivo</span>
+  </div>
   </div>
   <div id="cajaIvoContent">
     <!-- Saldo y acciones -->
@@ -11160,16 +11171,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </section>
 
 <section class="page active" id="page-costosFijos">
+  <div class="sticky-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">📋 COSTOS FIJOS</h2>
   </div>
-  <!-- Total general freezado -->
-  <div id="costosFijosTotalBar" style="position:sticky;top:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem;box-shadow:0 2px 10px rgba(0,0,0,.18)">
+  <!-- Total general -->
+  <div id="costosFijosTotalBar" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem;box-shadow:0 2px 10px rgba(0,0,0,.18)">
     <span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">💰 Total general del mes (sueldos + costos fijos)</span>
     <span id="costosFijosTotalGeneral" style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--yellow)">$0</span>
   </div>
+  </div>
   <!-- Sueldos -->
-  <div class="section-card" style="margin-bottom:1rem">
+  <div class="section-card" style="margin-bottom:1rem;margin-top:1rem">
     <h3 style="margin-bottom:.65rem">👤 Sueldos del mes</h3>
     <div id="sueldosContent">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.04em;color:var(--muted);margin-bottom:.75rem">Junio 2026</div>
@@ -11363,6 +11376,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <input type="number" id="cfg-comision-pct" value="6" min="0" max="100" style="width:80px;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
           <button class="nbtn" onclick="guardarConfigComision()">Guardar</button>
         </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">⚠️ Este % ya no se usa: la comisión ahora se calcula sola, sumando el % de cada empleado activo en Configuración → Empleados.</div>
+      </div>
+
+      <!-- Costo de transferencia -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.8rem;font-size:1rem">💳 Costo de transferencia</h3>
+        <div style="display:flex;gap:.6rem;align-items:center">
+          <label style="font-size:.9rem">Porcentaje (%):</label>
+          <input type="number" id="cfg-costo-transf-pct" value="4" min="0" max="100" step="0.1" style="width:80px;padding:.4rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+          <button class="nbtn" onclick="guardarConfigCostoTransferencia()">Guardar</button>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">Se descuenta sobre el total vendido por transferencia, en cada jornada nueva.</div>
       </div>
 
       <!-- Empleados -->
@@ -14302,7 +14327,7 @@ async function loadFromSupabase(){
     try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}_costosFijosCargadosOK=true;}catch(e){console.warn('⚠️ CostosFijos load (se mantiene caché local, NO se sobreescribe Supabase):',e.message);}
     // Load configuracion from Supabase
     try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){
-      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;}}catch(e){console.warn('⚠️ Configuracion load:',e.message);}
+      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;if(cfgData[0].costo_transferencia_pct!=null)costoTransferenciaPct=cfgData[0].costo_transferencia_pct;}}catch(e){console.warn('⚠️ Configuracion load:',e.message);}
     // Load empleados from Supabase (migra Morena/Abel automáticamente la primera vez)
     try{
       const empData=await sbFetch('empleados?select=*');
@@ -14675,8 +14700,9 @@ function showPage(id,btn){
   if(id==='cajaIvo'){renderCajaIvo();}
   if(id==='cierreMensual'){renderCierreMensual();}
   if(id==='listaCompras'){renderListaComprasPage();}
-  if(id==='costosFijos'){renderCostosFijos();renderSueldos();setTimeout(ajustarTopBarraCostosFijos,50);}
+  if(id==='costosFijos'){renderCostosFijos();renderSueldos();}
   if(id==='patrimonio'){renderPatrimonio();}
+  setTimeout(ajustarTopBarraCostosFijos,50);
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════════════════
@@ -15372,12 +15398,13 @@ function confirmarGuardar(){
   const ccF=parseFloat(document.getElementById('v_cc_final')?.value)||0;
   const efE=ccI+totEfec-totGastos-ccF;
   const totV=totEfec+totTransf;
-  // Costo transferencias 4% reduce la base
-  const costoTransferencias=Math.round(totTransf*0.04);
+  // Costo transferencias: % configurable (Configuración) reduce la base
+  const costoTransferencias=Math.round(totTransf*(costoTransferenciaPct/100));
   const baseNeta=totV-costoTransferencias;
-  // Comisiones: 6% sobre base neta (si aplica toggle)
+  // Comisiones: suma de % de comisión de los empleados ACTIVOS (no un % fijo)
   const aplicaComision=isAdminMode?(document.getElementById('comision-toggle')?.checked!==false):true;
-  const comisiones=aplicaComision?Math.round(baseNeta*0.06):0;
+  const pctComisionTotal=(empleados||[]).filter(e=>e.activo).reduce((s,e)=>s+(e.comPct||0),0)/100;
+  const comisiones=aplicaComision?Math.round(baseNeta*pctComisionTotal):0;
   // CMV: costo total de mercadería vendida
   let cmv=0;
   ventaRows.forEach(tk=>(tk.items||[]).forEach(it=>{
@@ -15816,8 +15843,8 @@ function confirmarEditVenta(){
     ch.totEfec=j.totalEfec;
     ch.totTransf=j.totalTransf;
     // Recalc metrics
-    ch.comisiones=Math.round(j.totalVentas*0.06);
-    ch.costoTransferencias=Math.round(j.totalTransf*0.04);
+    ch.comisiones=Math.round(j.totalVentas*((empleados||[]).filter(e=>e.activo).reduce((s,e)=>s+(e.comPct||0),0)/100));
+    ch.costoTransferencias=Math.round(j.totalTransf*(costoTransferenciaPct/100));
     let newCmv=0;
     j.ventas.forEach(t=>(t.items||[]).forEach(it=>{
       newCmv+=it.isVintage||it.productId===VINTAGE_ID?it.price*it.qty*0.5:(it.productCost||0)*it.qty;
@@ -18486,8 +18513,8 @@ function renderTotalCostosFijos(){
 }
 function ajustarTopBarraCostosFijos(){
   const nav=document.querySelector('.nav');
-  const bar=document.getElementById('costosFijosTotalBar');
-  if(nav&&bar) bar.style.top=nav.offsetHeight+'px';
+  const navH=nav?nav.offsetHeight:0;
+  document.querySelectorAll('.sticky-panel').forEach(p=>{p.style.top=navH+'px';});
 }
 window.addEventListener('resize',ajustarTopBarraCostosFijos);
 function abrirDetallePendiente(id){
@@ -19394,7 +19421,14 @@ function getCierreMensual(year,month){
   // ── Estado de resultados ──
   const utilidadBruta=totVentas-totCMV;
   const margenBruto=totVentas>0?(utilidadBruta/totVentas*100):0;
-  const totalCostosFijosMes=(typeof calcTotalMesHistorial==='function')?calcTotalMesHistorial(prefix).total:0;
+  // Costos fijos del mes = costos fijos devengados (pagados o no, igual que la pestaña Costos Fijos)
+  //                      + sueldo devengado de los empleados ACTIVOS (no solo lo ya pagado)
+  const totalCostosFijosObligaciones=obligacionesMes.filter(o=>o.mesKey===prefix).reduce((s,o)=>s+o.monto,0);
+  const totalSueldosDevengados=(empleados||[]).filter(e=>e.activo).reduce((s,v)=>{
+    const c=calcularSueldoMes(v.nombre,year,month);
+    return s+(c?c.total:0);
+  },0);
+  const totalCostosFijosMes=totalCostosFijosObligaciones+totalSueldosDevengados;
   const gananciaNeta=utilidadBruta-totCostoTransf-totComisiones-totGastos-totDesc-totalCostosFijosMes;
   const totEfecTransf=totEfec+totTransf;
   const pctEfec=totEfecTransf>0?Math.round(totEfec/totEfecTransf*100):0;
@@ -19532,6 +19566,16 @@ function exportarCierreMensualPDF(year,month){
 // ═════════════════════════════════════════════════════════════════
 // ══ OBJETIVO DIARIO ══════════════════════════════════════════════
 let objetivoDiario=1000000;
+let costoTransferenciaPct=parseFloat(localStorage.getItem('mv6_costo_transferencia_pct'))||4;
+
+function guardarConfigCostoTransferencia(){
+  const pct=parseFloat(document.getElementById('cfg-costo-transf-pct')?.value);
+  if(isNaN(pct)||pct<0){showToast('❌ Ingresá un % válido');return;}
+  costoTransferenciaPct=pct;
+  localStorage.setItem('mv6_costo_transferencia_pct',pct);
+  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',costo_transferencia_pct:pct,updated_at:new Date().toISOString()}]).catch(e=>console.warn('CostoTransferencia sync:',e.message));
+  showToast(`✅ Costo de transferencia: ${pct}%`);
+}
 
 function updateObjetivo(){
   const totVentas=ventaRows.reduce((s,t)=>s+t.total,0);
@@ -20841,6 +20885,8 @@ function initConfigPage(){
   }
   const pct=document.getElementById('cfg-comision-pct');
   if(pct) pct.value=parseFloat(localStorage.getItem('mv6_comision_pct'))||6;
+  const pctTransf=document.getElementById('cfg-costo-transf-pct');
+  if(pctTransf) pctTransf.value=costoTransferenciaPct;
   renderEmpleados();
 }
 
