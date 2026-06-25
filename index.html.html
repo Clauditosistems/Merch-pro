@@ -18509,7 +18509,7 @@ function renderCostosFijos(){
       </tr></thead>
       <tbody>${costosFijos.map(cf=>`<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:.38rem .6rem;font-size:.82rem;font-weight:600">${cf.nombre}</td>
-        <td style="padding:.38rem .6rem;text-align:center;font-weight:700;color:var(--yellow)">${fmtM(cf.monto)}</td>
+        <td style="padding:.38rem .6rem;text-align:center;font-weight:700;color:var(--yellow)">${fmtM(cf.monto)}${cf.moneda==='dolares'?`<div style="font-size:.62rem;font-weight:400;color:var(--muted)">US$${cf.montoOriginal} × $${cf.tipoCambio}</div>`:''}</td>
         <td style="padding:.38rem .6rem;text-align:center;font-size:.75rem;color:var(--muted)">${cf.diavenc||'—'}</td>
         <td style="padding:.38rem .6rem"><button onclick="eliminarCostoFijo('${cf.id}')" class="del-btn" style="font-size:.62rem;padding:.15rem .35rem">✕</button></td>
       </tr>`).join('')}</tbody>
@@ -18524,6 +18524,11 @@ function abrirNuevoCostoFijo(){
   document.getElementById('ncf_nombre').value='';
   document.getElementById('ncf_monto').value='';
   document.getElementById('ncf_dia').value='';
+  document.getElementById('ncf_moneda').value='pesos';
+  document.getElementById('ncf_tipocambio').value='';
+  document.getElementById('ncf_tc_box').style.display='none';
+  document.getElementById('ncf_monto_label').textContent='Monto ($) *';
+  document.getElementById('ncf_preview').style.display='none';
 }
 function cerrarNuevoCostoFijo(){
   const _m_nuevoCostoFijoModal=document.getElementById('nuevoCostoFijoModal');
@@ -18531,13 +18536,47 @@ function cerrarNuevoCostoFijo(){
   _m_nuevoCostoFijoModal.style.display='';
   document.body.style.overflow='';
 }
+function toggleMonedaCostoFijo(){
+  const moneda=document.getElementById('ncf_moneda').value;
+  const tcBox=document.getElementById('ncf_tc_box');
+  const label=document.getElementById('ncf_monto_label');
+  if(moneda==='dolares'){
+    tcBox.style.display='';
+    label.textContent='Monto (USD) *';
+  }else{
+    tcBox.style.display='none';
+    label.textContent='Monto ($) *';
+  }
+  actualizarPreviewCostoFijo();
+}
+function actualizarPreviewCostoFijo(){
+  const moneda=document.getElementById('ncf_moneda')?.value||'pesos';
+  const preview=document.getElementById('ncf_preview');
+  if(moneda!=='dolares'){preview.style.display='none';return;}
+  const montoUsd=parseFloat(document.getElementById('ncf_monto').value)||0;
+  const tc=parseFloat(document.getElementById('ncf_tipocambio').value)||0;
+  if(montoUsd>0&&tc>0){
+    preview.style.display='';
+    preview.textContent=`= ${fmtM(Math.round(montoUsd*tc))} (US$${montoUsd} × $${tc})`;
+  }else{
+    preview.style.display='none';
+  }
+}
 function confirmarNuevoCostoFijo(){
   const nombre=(document.getElementById('ncf_nombre')?.value||'').trim();
   if(!nombre){showToast('❌ Ingresá un nombre');return;}
-  const monto=parseFloat(document.getElementById('ncf_monto')?.value)||0;
-  if(monto<=0){showToast('❌ Ingresá un monto válido');return;}
+  const moneda=document.getElementById('ncf_moneda')?.value||'pesos';
+  const montoIngresado=parseFloat(document.getElementById('ncf_monto')?.value)||0;
+  if(montoIngresado<=0){showToast('❌ Ingresá un monto válido');return;}
+  let monto=montoIngresado,tipoCambio=null,montoOriginal=null;
+  if(moneda==='dolares'){
+    tipoCambio=parseFloat(document.getElementById('ncf_tipocambio')?.value)||0;
+    if(tipoCambio<=0){showToast('❌ Ingresá un tipo de cambio válido');return;}
+    montoOriginal=montoIngresado;
+    monto=Math.round(montoIngresado*tipoCambio);
+  }
   const diavenc=parseInt(document.getElementById('ncf_dia')?.value)||0;
-  costosFijos.push({id:'cf'+Date.now(),nombre,monto,diavenc:diavenc||null});
+  costosFijos.push({id:'cf'+Date.now(),nombre,monto,diavenc:diavenc||null,moneda,montoOriginal,tipoCambio});
   saveCostosFijos();
   generarObligacionesMesActual();
   cerrarNuevoCostoFijo();
@@ -18602,7 +18641,10 @@ function renderEmpleados(){
           <strong>${e.nombre}</strong>
           <span style="font-size:.78rem;color:var(--muted);margin-left:.5rem">Sueldo fijo: ${fmtM(e.fijo)} · Comisión: ${e.comPct}%</span>
         </div>
-        <button onclick="archivarEmpleado('${e.id}')" class="del-btn" style="font-size:.68rem;padding:.2rem .5rem">📦 Archivar</button>
+        <div style="display:flex;gap:.4rem">
+          <button onclick="abrirNuevoEmpleado('${e.id}')" class="nbtn" style="font-size:.68rem;padding:.2rem .5rem">✏️ Editar</button>
+          <button onclick="archivarEmpleado('${e.id}')" class="del-btn" style="font-size:.68rem;padding:.2rem .5rem">📦 Archivar</button>
+        </div>
       </div>`).join(''):'<p style="color:var(--muted);font-size:.82rem">Sin empleados activos.</p>'}
     ${archivados.length?`
       <div style="font-size:.78rem;color:var(--muted);margin-top:.8rem;margin-bottom:.3rem">Archivados</div>
@@ -18612,41 +18654,60 @@ function renderEmpleados(){
             <strong>${e.nombre}</strong>
             <span style="font-size:.78rem;color:var(--muted);margin-left:.5rem">Sueldo fijo: ${fmtM(e.fijo)} · Comisión: ${e.comPct}%</span>
           </div>
-          <button onclick="reactivarEmpleado('${e.id}')" class="nbtn" style="font-size:.68rem;padding:.2rem .5rem">↩️ Reactivar</button>
+          <div style="display:flex;gap:.4rem">
+            <button onclick="abrirNuevoEmpleado('${e.id}')" class="nbtn" style="font-size:.68rem;padding:.2rem .5rem">✏️ Editar</button>
+            <button onclick="reactivarEmpleado('${e.id}')" class="nbtn" style="font-size:.68rem;padding:.2rem .5rem">↩️ Reactivar</button>
+          </div>
         </div>`).join('')}
     `:''}
   `;
 }
 
-function abrirNuevoEmpleado(){
+let _empleadoEditId=null;
+function abrirNuevoEmpleado(id){
+  _empleadoEditId=id||null;
+  const emp=_empleadoEditId?empleados.find(e=>e.id===_empleadoEditId):null;
   document.getElementById('nuevoEmpleadoModal').classList.add('open');
   document.getElementById('nuevoEmpleadoModal').style.display='flex';
   document.body.style.overflow='hidden';
-  document.getElementById('ne_nombre').value='';
-  document.getElementById('ne_sueldo').value='';
-  document.getElementById('ne_comision').value='';
+  const tit=document.querySelector('#nuevoEmpleadoModal .modal-title');
+  if(tit)tit.textContent=emp?'✏️ EDITAR EMPLEADO':'🧑‍💼 NUEVO EMPLEADO';
+  document.getElementById('ne_nombre').value=emp?emp.nombre:'';
+  document.getElementById('ne_sueldo').value=emp?emp.fijo:'';
+  document.getElementById('ne_comision').value=emp?emp.comPct:'';
 }
 function cerrarNuevoEmpleado(){
   const m=document.getElementById('nuevoEmpleadoModal');
   m.classList.remove('open');m.style.display='';
   document.body.style.overflow='';
+  _empleadoEditId=null;
 }
 function confirmarNuevoEmpleado(){
   const nombre=(document.getElementById('ne_nombre')?.value||'').trim();
   if(!nombre){showToast('❌ Ingresá un nombre');return;}
-  if(empleados.some(e=>e.activo&&e.nombre.toLowerCase()===nombre.toLowerCase())){
-    showToast('❌ Ya existe un empleado activo con ese nombre');return;
-  }
+  const dup=empleados.some(e=>e.activo&&e.nombre.toLowerCase()===nombre.toLowerCase()&&e.id!==_empleadoEditId);
+  if(dup){showToast('❌ Ya existe un empleado activo con ese nombre');return;}
   const fijo=parseFloat(document.getElementById('ne_sueldo')?.value)||0;
   if(fijo<=0){showToast('❌ Ingresá un sueldo fijo válido');return;}
   const comPct=parseFloat(document.getElementById('ne_comision')?.value)||0;
-  const emp={id:'emp'+Date.now(),nombre,fijo,comPct,activo:true};
-  empleados.push(emp);
-  persistEmpleado(emp);
-  cerrarNuevoEmpleado();
-  renderEmpleados();
-  renderSueldos();
-  showToast('✅ Empleado agregado');
+  if(_empleadoEditId){
+    const emp=empleados.find(e=>e.id===_empleadoEditId);
+    if(!emp){cerrarNuevoEmpleado();return;}
+    emp.nombre=nombre;emp.fijo=fijo;emp.comPct=comPct;
+    persistEmpleado(emp);
+    cerrarNuevoEmpleado();
+    renderEmpleados();
+    renderSueldos();
+    showToast('✅ Empleado actualizado');
+  }else{
+    const emp={id:'emp'+Date.now(),nombre,fijo,comPct,activo:true};
+    empleados.push(emp);
+    persistEmpleado(emp);
+    cerrarNuevoEmpleado();
+    renderEmpleados();
+    renderSueldos();
+    showToast('✅ Empleado agregado');
+  }
 }
 function archivarEmpleado(id){
   const emp=empleados.find(e=>e.id===id);if(!emp)return;
@@ -19552,7 +19613,19 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
     </div>
     <div class="fg">
       <div class="fgroup full"><label>Nombre *</label><input type="text" id="ncf_nombre" placeholder="Ej: Alquiler, Expensas, Servicio..."></div>
-      <div class="fgroup"><label>Monto ($) *</label><input type="number" id="ncf_monto" min="0" placeholder="0"></div>
+      <div class="fgroup">
+        <label>Moneda</label>
+        <select id="ncf_moneda" onchange="toggleMonedaCostoFijo()" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.42rem .65rem;font-size:.82rem;font-family:'DM Sans',sans-serif;width:100%">
+          <option value="pesos">$ Pesos</option>
+          <option value="dolares">US$ Dólares</option>
+        </select>
+      </div>
+      <div class="fgroup"><label id="ncf_monto_label">Monto ($) *</label><input type="number" id="ncf_monto" min="0" placeholder="0" oninput="actualizarPreviewCostoFijo()"></div>
+      <div class="fgroup" id="ncf_tc_box" style="display:none">
+        <label>Tipo de cambio ($/USD)</label>
+        <input type="number" id="ncf_tipocambio" min="0" placeholder="Ej: 1200" oninput="actualizarPreviewCostoFijo()">
+      </div>
+      <div class="fgroup full" id="ncf_preview" style="display:none;font-size:.78rem;color:var(--muted)"></div>
       <div class="fgroup"><label>Día de vencimiento</label><input type="number" id="ncf_dia" min="1" max="31" placeholder="Ej: 10"></div>
     </div>
     <div class="form-actions">
