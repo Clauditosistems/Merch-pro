@@ -11236,7 +11236,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div style="display:flex;flex-direction:column;gap:.35rem;justify-content:center">
         <button class="btn btn-primary" style="font-size:.75rem" onclick="abrirNuevoCostoFijo()">➕ Agregar costo fijo</button>
-        <button class="btn btn-secondary" style="font-size:.75rem" onclick="generarObligacionesMesActual();renderCostosFijos()">🔄 Regenerar mes</button>
       </div>
     </div>
     <!-- Barra de progreso pago -->
@@ -11279,6 +11278,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </tr></tbody>
     </table></div>
   </div>
+  </div>
+  <!-- Historial de costos por mes -->
+  <div class="section-card" style="margin-top:1rem">
+    <h3 style="margin-bottom:.65rem">📚 Historial de costos por mes</h3>
+    <div id="historialCostosContent"></div>
   </div>
 </section>
 
@@ -14297,7 +14301,7 @@ async function loadFromSupabase(){
     try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}}catch(e){}
     // Load configuracion from Supabase
     try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){
-      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;}}catch(e){}
+      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;}}catch(e){}
     // Load empleados from Supabase (migra Morena/Abel automáticamente la primera vez)
     try{
       const empData=await sbFetch('empleados?select=*');
@@ -14311,6 +14315,9 @@ async function loadFromSupabase(){
       }
       saveEmpleadosLocal();
     }catch(e){console.warn('Empleados sync:',e.message);}
+    // Rollover automático: asegura que el mes actual tenga sus obligaciones generadas
+    // tras cargar costosFijos/obligaciones desde Supabase.
+    generarObligacionesMesActual();
     showToast('✅ Datos cargados');
     await _cargarCarritoCompras();
     renderAll();
@@ -18411,18 +18418,21 @@ function setSaldoInicial(){
 let categorias=['Camperas', 'Camperitas', 'Pantalones', 'Remeras', 'Buzos', 'Sweaters', 'Térmicas', 'Calzas', 'Shorts', 'Conjuntos', 'Accesorios', 'General'];  // rubros editables
 let costosFijos=[];       // configuración permanente
 let obligacionesMes=[];   // generadas cada mes
+let sueldosPagados=[];    // historial de pagos de sueldo por mes
 
 function initCostosFijos(){
   try{costosFijos=JSON.parse(localStorage.getItem('mv6_costos_fijos')||'[]');}catch(e){costosFijos=[];}
   try{obligacionesMes=JSON.parse(localStorage.getItem('mv6_obligaciones')||'[]');}catch(e){obligacionesMes=[];}
+  try{sueldosPagados=JSON.parse(localStorage.getItem('mv6_sueldos_pagados')||'[]');}catch(e){sueldosPagados=[];}
   generarObligacionesMesActual();
 }
 
 function saveCostosFijos(){
   localStorage.setItem('mv6_costos_fijos',JSON.stringify(costosFijos));
   localStorage.setItem('mv6_obligaciones',JSON.stringify(obligacionesMes));
+  localStorage.setItem('mv6_sueldos_pagados',JSON.stringify(sueldosPagados));
   _sbFetch('POST','costos_fijos?on_conflict=id',[{id:1,items:costosFijos||[],updated_at:new Date().toISOString()}]).catch(e=>console.warn('CostosFijos sync:',e.message));
-  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',obligaciones:obligacionesMes||[],updated_at:new Date().toISOString()}]).catch(e=>console.warn('Obligaciones sync:',e.message));
+  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',obligaciones:obligacionesMes||[],sueldos_pagados:sueldosPagados||[],updated_at:new Date().toISOString()}]).catch(e=>console.warn('Obligaciones sync:',e.message));
 }
 
 function generarObligacionesMesActual(){
@@ -18489,6 +18499,80 @@ function cerrarDetallePendiente(){
   document.body.style.overflow='';
 }
 
+// ── HISTORIAL DE COSTOS POR MES ──────────────────────────────────
+function getMesesHistorial(){
+  const hoy=new Date();
+  const mesActual=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const set=new Set();
+  obligacionesMes.forEach(o=>{if(o.mesKey&&o.mesKey!==mesActual)set.add(o.mesKey);});
+  sueldosPagados.forEach(sp=>{if(sp.mesKey&&sp.mesKey!==mesActual)set.add(sp.mesKey);});
+  return Array.from(set).sort((a,b)=>b.localeCompare(a)); // más reciente primero
+}
+function calcTotalMesHistorial(mesKey){
+  const obs=obligacionesMes.filter(o=>o.mesKey===mesKey);
+  const sps=sueldosPagados.filter(sp=>sp.mesKey===mesKey);
+  const totalCostos=obs.reduce((s,o)=>s+o.monto,0);
+  const totalSueldos=sps.reduce((s,sp)=>s+sp.monto,0);
+  return{totalCostos,totalSueldos,total:totalCostos+totalSueldos,obs,sps};
+}
+function renderHistorialCostos(){
+  const el=document.getElementById('historialCostosContent');if(!el)return;
+  const meses=getMesesHistorial();
+  if(!meses.length){el.innerHTML='<p style="color:var(--muted);font-size:.82rem">Todavía no hay meses anteriores registrados.</p>';return;}
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:.4rem">
+    ${meses.map(mk=>{
+      const d=calcTotalMesHistorial(mk);
+      return `<div onclick="abrirDetalleMes('${mk}')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:.55rem .9rem;cursor:pointer;flex-wrap:wrap;gap:.35rem">
+        <div>
+          <span style="font-weight:600;font-size:.9rem">${formatMesKey(mk)}</span>
+          <span style="font-size:.68rem;color:var(--muted);margin-left:.5rem">${d.obs.length} costo(s) · ${d.sps.length} sueldo(s)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--yellow)">${fmtM(d.total)}</span>
+          <span style="font-size:.66rem;color:var(--muted)">🔍 Ver detalle</span>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function abrirDetalleMes(mesKey){
+  const d=calcTotalMesHistorial(mesKey);
+  const medioLabel=(x)=>{const mp=x.medioPago||x.tipoPago||'efectivo';return mp==='mixto'?`🔀 mixto (💵 ${fmtM(x.montoEfectivo||0)} + 💳 ${fmtM(x.montoTransferencia||0)})`:mp==='efectivo'?'💵 efectivo':'💳 transferencia';};
+  document.getElementById('detalleMesTitulo').textContent='📅 '+formatMesKey(mesKey);
+  document.getElementById('detalleMesContent').innerHTML=`
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.04em;color:var(--muted);margin-bottom:.4rem">Costos fijos</div>
+    ${d.obs.length?d.obs.map(o=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .2rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.3rem">
+        <div>
+          <span style="font-weight:600;font-size:.84rem">${o.nombre}</span>
+          <span style="font-size:.68rem;color:var(--muted);margin-left:.4rem">${o.pagado?'✅ '+medioLabel(o)+(o.fechaPago?' · '+o.fechaPago:''):'⏳ no pagado'}</span>
+        </div>
+        <span style="font-weight:700;color:${o.pagado?'var(--green)':'var(--accent)'}">${fmtM(o.monto)}</span>
+      </div>`).join(''):'<p style="color:var(--muted);font-size:.8rem">Sin costos fijos este mes.</p>'}
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.04em;color:var(--muted);margin:.8rem 0 .4rem">Sueldos pagados</div>
+    ${d.sps.length?d.sps.map(sp=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .2rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.3rem">
+        <div>
+          <span style="font-weight:600;font-size:.84rem">${sp.empleado}</span>
+          <span style="font-size:.68rem;color:var(--muted);margin-left:.4rem">✅ ${medioLabel(sp)}${sp.fechaPago?' · '+sp.fechaPago:''}</span>
+        </div>
+        <span style="font-weight:700;color:var(--green)">${fmtM(sp.monto)}</span>
+      </div>`).join(''):'<p style="color:var(--muted);font-size:.8rem">Sin sueldos registrados este mes.</p>'}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.9rem;padding-top:.6rem;border-top:2px solid var(--border)">
+      <span style="font-weight:700;font-size:.95rem">TOTAL DEL MES</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--yellow)">${fmtM(d.total)}</span>
+    </div>
+  `;
+  document.getElementById('detalleMesModal').classList.add('open');
+  document.getElementById('detalleMesModal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function cerrarDetalleMes(){
+  const m=document.getElementById('detalleMesModal');
+  m.classList.remove('open');m.style.display='';
+  document.body.style.overflow='';
+}
+
 function renderCostosFijos(){
   const el=document.getElementById('costosFijosContent');if(!el)return;
   const hoy=new Date();
@@ -18534,7 +18618,6 @@ function renderCostosFijos(){
       </div>
       <div style="display:flex;flex-direction:column;gap:.35rem;justify-content:center">
         <button class="btn btn-primary" style="font-size:.75rem" onclick="abrirNuevoCostoFijo()">➕ Agregar costo fijo</button>
-        <button class="btn btn-secondary" style="font-size:.75rem" onclick="generarObligacionesMesActual();renderCostosFijos()">🔄 Regenerar mes</button>
       </div>
     </div>
     <!-- Barra de progreso pago -->
@@ -18583,6 +18666,7 @@ function renderCostosFijos(){
     </table></div>`:'<p style="color:var(--muted);font-size:.82rem">Sin costos fijos configurados.</p>'}
   `;
   renderTotalCostosFijos();
+  renderHistorialCostos();
 }
 
 let _costoFijoEditId=null;
@@ -18945,6 +19029,10 @@ function confirmarMedioPago(){
     saveCostosFijos();renderCostosFijos();
     showToast(`✅ ${ob.nombre} pagado (${medioLabel}) — ${fmtM(ob.monto)}`);
   }else if(ctx.tipo==='sueldo'){
+    const hoyD=new Date();
+    const mesKeySueldo=`${hoyD.getFullYear()}-${String(hoyD.getMonth()+1).padStart(2,'0')}`;
+    const yaPagado=sueldosPagados.find(sp=>sp.empleado===ctx.nombre&&sp.mesKey===mesKeySueldo);
+    if(yaPagado&&!confirm(`⚠️ El sueldo de ${ctx.nombre} para ${formatMesKey(mesKeySueldo)} ya figura como pagado.\n¿Registrar otro pago igual?`))return;
     if(montoEfectivo>0){
       cajaIvoMovimientos.push({
         id:'sueldo'+Date.now(),
@@ -18955,6 +19043,13 @@ function confirmarMedioPago(){
       });
       saveCajaIvo();
     }
+    sueldosPagados.push({
+      id:'sp'+Date.now(),
+      empleado:ctx.nombre,mesKey:mesKeySueldo,monto:ctx.monto,
+      medioPago:medio,montoEfectivo,montoTransferencia,fechaPago:todayStr()
+    });
+    saveCostosFijos();
+    if(typeof renderSueldos==='function')renderSueldos();
     showToast(`✅ Sueldo de ${ctx.nombre} pagado (${medioLabel}) — ${fmtM(ctx.monto)}`);
   }
   cerrarMedioPago();
@@ -19698,6 +19793,20 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
       <button class="btn btn-blue" id="pdEtiquetaBtn" onclick="">🏷️ Imprimir etiquetas</button>
       <button class="btn btn-secondary" id="pdEditBtn" onclick="" style="">✏️ Editar</button>
       <button class="btn btn-secondary" onclick="closeProductDetail()">✕ Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: DETALLE MES HISTORIAL ═══ -->
+<div class="modal-overlay" id="detalleMesModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title" id="detalleMesTitulo">📅 MES</div>
+      <button class="modal-close" onclick="cerrarDetalleMes()">✕</button>
+    </div>
+    <div id="detalleMesContent" style="font-size:.88rem;max-height:60vh;overflow-y:auto"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="cerrarDetalleMes()">Cerrar</button>
     </div>
   </div>
 </div>
