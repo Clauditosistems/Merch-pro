@@ -11123,23 +11123,22 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">💰 CAJA IVO</h2>
     <span style="font-size:.75rem;color:var(--muted)">🔒 Solo administrador · Solo efectivo</span>
   </div>
-  </div>
-  <div id="cajaIvoContent">
-    <!-- Saldo y acciones -->
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:stretch;margin-bottom:1rem">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem 1.2rem;flex:1;min-width:180px">
-        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Saldo actual en caja</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--green);letter-spacing:.04em">$0</div>
-        <div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">0 movimientos</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:.45rem;justify-content:center">
-        <button class="btn btn-primary" style="font-size:.78rem" onclick="openCajaIvoSalida()">➖ Registrar salida</button>
-        <button class="btn" style="font-size:.78rem;background:rgba(244,196,48,.15);border:1px solid rgba(244,196,48,.3);color:var(--yellow)" onclick="openArqueoCajaIvo()">🔍 Realizar arqueo</button>
-        <button class="btn btn-secondary" style="font-size:.72rem" onclick="setSaldoInicial()">💵 Definir saldo inicial</button>
-      </div>
+  <!-- Saldo y acciones -->
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:stretch">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem 1.2rem;flex:1;min-width:180px">
+      <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Saldo actual en caja</div>
+      <div id="cajaIvoSaldoTxt" style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--green);letter-spacing:.04em">$0</div>
+      <div id="cajaIvoMovCountTxt" style="font-size:.68rem;color:var(--muted);margin-top:.2rem">0 movimientos</div>
     </div>
+    <div style="display:flex;flex-direction:column;gap:.45rem;justify-content:center">
+      <button class="btn btn-primary" style="font-size:.78rem" onclick="openCajaIvoSalida()">➖ Registrar salida</button>
+      <button class="btn" style="font-size:.78rem;background:rgba(244,196,48,.15);border:1px solid rgba(244,196,48,.3);color:var(--yellow)" onclick="openArqueoCajaIvo()">🔍 Realizar arqueo</button>
+      <button class="btn btn-secondary" id="cajaIvoDefSaldoBtn" style="font-size:.72rem" onclick="setSaldoInicial()">💵 Definir saldo inicial</button>
+    </div>
+  </div>
+  </div>
+  <div id="cajaIvoContent" style="margin-top:1rem">
 
-    
     <div style="background:rgba(244,196,48,.08);border:1px solid rgba(244,196,48,.25);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem">
       <div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.09em;color:var(--yellow);font-weight:700;margin-bottom:.5rem">⏳ JORNADAS PENDIENTES DE CONFIRMAR (1)</div>
       
@@ -18246,12 +18245,19 @@ function renderCajaIvo(){
   recalcCajaIvoSaldos();
   const saldoActual=getCajaIvoSaldo();
 
+  // Panel de saldo (vive en el panel fijo, fuera de cajaIvoContent) — se actualiza directo, sin regenerar HTML
+  const saldoColor=saldoActual>=0?'var(--green)':'var(--accent)';
+  const saldoTxt=document.getElementById('cajaIvoSaldoTxt');
+  if(saldoTxt){saldoTxt.textContent=fmtM(saldoActual);saldoTxt.style.color=saldoColor;}
+  const movCountTxt=document.getElementById('cajaIvoMovCountTxt');
+  if(movCountTxt)movCountTxt.textContent=`${cajaIvoMovimientos.length} movimiento${cajaIvoMovimientos.length!==1?'s':''}`;
+  const defSaldoBtn=document.getElementById('cajaIvoDefSaldoBtn');
+  if(defSaldoBtn)defSaldoBtn.style.display=cajaIvoSaldoInicial===0?'':'none';
+
   // Jornadas pendientes de confirmar (que no tienen movimiento asociado)
   const jornadasConfirmadas=new Set(cajaIvoMovimientos.filter(m=>m.jornadaId).map(m=>m.jornadaId));
   const pendientes=ventasHistory.filter(j=>!j.anulada&&!jornadasConfirmadas.has(j.id));
 
-  // Panel saldo
-  const saldoColor=saldoActual>=0?'var(--green)':'var(--accent)';
   const pendientesHtml=pendientes.length?`
     <div style="background:rgba(244,196,48,.08);border:1px solid rgba(244,196,48,.25);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem">
       <div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.09em;color:var(--yellow);font-weight:700;margin-bottom:.5rem">⏳ JORNADAS PENDIENTES DE CONFIRMAR (${pendientes.length})</div>
@@ -18266,20 +18272,6 @@ function renderCajaIvo(){
     </div>`:'';
 
   document.getElementById('cajaIvoContent').innerHTML=`
-    <!-- Saldo y acciones -->
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:stretch;margin-bottom:1rem">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem 1.2rem;flex:1;min-width:180px">
-        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Saldo actual en caja</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:${saldoColor};letter-spacing:.04em">${fmtM(saldoActual)}</div>
-        <div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">${cajaIvoMovimientos.length} movimiento${cajaIvoMovimientos.length!==1?'s':''}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:.45rem;justify-content:center">
-        <button class="btn btn-primary" style="font-size:.78rem" onclick="openCajaIvoSalida()">➖ Registrar salida</button>
-        <button class="btn" style="font-size:.78rem;background:rgba(244,196,48,.15);border:1px solid rgba(244,196,48,.3);color:var(--yellow)" onclick="openArqueoCajaIvo()">🔍 Realizar arqueo</button>
-        ${cajaIvoSaldoInicial===0?`<button class="btn btn-secondary" style="font-size:.72rem" onclick="setSaldoInicial()">💵 Definir saldo inicial</button>`:''}
-      </div>
-    </div>
-
     ${pendientesHtml}
 
     <!-- Tabla de movimientos -->
@@ -18517,6 +18509,10 @@ function ajustarTopBarraCostosFijos(){
   document.querySelectorAll('.sticky-panel').forEach(p=>{p.style.top=navH+'px';});
 }
 window.addEventListener('resize',ajustarTopBarraCostosFijos);
+window.addEventListener('load',ajustarTopBarraCostosFijos);
+// Reintentos extra: cubre casos donde el nav todavía no terminó de acomodarse
+// (fuentes/iconos cargando) la primera vez que se calculó la posición.
+[100,400,1000].forEach(ms=>setTimeout(ajustarTopBarraCostosFijos,ms));
 function abrirDetallePendiente(id){
   const ob=obligacionesMes.find(o=>o.id===id);if(!ob)return;
   document.getElementById('detallePendienteContent').innerHTML=`
