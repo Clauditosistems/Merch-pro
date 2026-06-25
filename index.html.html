@@ -11163,6 +11163,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">📋 COSTOS FIJOS</h2>
   </div>
+  <!-- Total general freezado -->
+  <div id="costosFijosTotalBar" style="position:sticky;top:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem;box-shadow:0 2px 10px rgba(0,0,0,.18)">
+    <span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">💰 Total general del mes (sueldos + costos fijos)</span>
+    <span id="costosFijosTotalGeneral" style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--yellow)">$0</span>
+  </div>
   <!-- Sueldos -->
   <div class="section-card" style="margin-bottom:1rem">
     <h3 style="margin-bottom:.65rem">👤 Sueldos del mes</h3>
@@ -14657,7 +14662,7 @@ function showPage(id,btn){
   if(id==='cajaIvo'){renderCajaIvo();}
   if(id==='cierreMensual'){renderCierreMensual();}
   if(id==='listaCompras'){renderListaComprasPage();}
-  if(id==='costosFijos'){renderCostosFijos();renderSueldos();}
+  if(id==='costosFijos'){renderCostosFijos();renderSueldos();setTimeout(ajustarTopBarraCostosFijos,50);}
   if(id==='patrimonio'){renderPatrimonio();}
 }
 
@@ -18440,6 +18445,50 @@ function generarObligacionesMesActual(){
   saveCostosFijos();
 }
 
+function formatMesKey(mesKey){
+  const meses=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [y,m]=(mesKey||'').split('-');
+  return (meses[parseInt(m)]||'')+' '+(y||'');
+}
+function renderTotalCostosFijos(){
+  const el=document.getElementById('costosFijosTotalGeneral');if(!el)return;
+  const hoy=new Date();
+  const mesKey=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const totalSueldos=empleados.filter(e=>e.activo).reduce((s,v)=>{
+    const c=calcularSueldoMes(v.nombre,hoy.getFullYear(),hoy.getMonth()+1);
+    return s+(c?c.total:0);
+  },0);
+  const totalCostosMes=obligacionesMes.filter(o=>o.mesKey===mesKey).reduce((s,o)=>s+o.monto,0);
+  const totalPendienteAnterior=obligacionesMes.filter(o=>!o.pagado&&o.mesKey!==mesKey).reduce((s,o)=>s+o.monto,0);
+  el.textContent=fmtM(totalSueldos+totalCostosMes+totalPendienteAnterior);
+}
+function ajustarTopBarraCostosFijos(){
+  const nav=document.querySelector('.nav');
+  const bar=document.getElementById('costosFijosTotalBar');
+  if(nav&&bar) bar.style.top=nav.offsetHeight+'px';
+}
+window.addEventListener('resize',ajustarTopBarraCostosFijos);
+function abrirDetallePendiente(id){
+  const ob=obligacionesMes.find(o=>o.id===id);if(!ob)return;
+  document.getElementById('detallePendienteContent').innerHTML=`
+    <div><strong>Concepto:</strong> ${ob.nombre}</div>
+    <div><strong>Mes correspondiente:</strong> ${formatMesKey(ob.mesKey)}</div>
+    <div><strong>Monto:</strong> ${fmtM(ob.monto)}</div>
+    <div><strong>Vencimiento:</strong> ${ob.vencimiento||'—'}</div>
+    <div><strong>Estado:</strong> <span style="color:var(--accent)">⏳ Pendiente de pago</span></div>
+  `;
+  const btn=document.getElementById('detallePendientePagarBtn');
+  btn.onclick=()=>{cerrarDetallePendiente();pagarObligacion(ob.id);};
+  document.getElementById('detallePendienteModal').classList.add('open');
+  document.getElementById('detallePendienteModal').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function cerrarDetallePendiente(){
+  const m=document.getElementById('detallePendienteModal');
+  m.classList.remove('open');m.style.display='';
+  document.body.style.overflow='';
+}
+
 function renderCostosFijos(){
   const el=document.getElementById('costosFijosContent');if(!el)return;
   const hoy=new Date();
@@ -18450,7 +18499,25 @@ function renderCostosFijos(){
   const totalMes=obsMes.reduce((s,o)=>s+o.monto,0);
   const totalPagado=obsMes.filter(o=>o.pagado).reduce((s,o)=>s+o.monto,0);
   const totalPendiente=totalMes-totalPagado;
+  const pendientesAnteriores=obligacionesMes.filter(o=>!o.pagado&&o.mesKey!==mesKey).sort((a,b)=>a.mesKey.localeCompare(b.mesKey));
   el.innerHTML=`
+    <!-- Costos pendientes de meses anteriores -->
+    ${pendientesAnteriores.length?`<div style="background:rgba(230,57,70,.08);border:1px solid rgba(230,57,70,.35);border-radius:10px;padding:.8rem .9rem;margin-bottom:1.2rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:.04em;color:var(--accent);margin-bottom:.5rem">⚠️ Costos pendientes de meses anteriores (${pendientesAnteriores.length})</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        ${pendientesAnteriores.map(o=>`
+          <div onclick="abrirDetallePendiente('${o.id}')" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:.5rem .8rem;flex-wrap:wrap;gap:.35rem;cursor:pointer">
+            <div>
+              <span style="font-weight:600;font-size:.85rem">${o.nombre}</span>
+              <span style="font-size:.68rem;color:var(--muted);margin-left:.5rem">${formatMesKey(o.mesKey)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--accent)">${fmtM(o.monto)}</span>
+              <span style="font-size:.66rem;color:var(--muted)">🔍 Ver detalle</span>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`:''}
     <!-- Resumen del mes -->
     <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;flex:1;min-width:140px;text-align:center">
@@ -18511,30 +18578,41 @@ function renderCostosFijos(){
         <td style="padding:.38rem .6rem;font-size:.82rem;font-weight:600">${cf.nombre}</td>
         <td style="padding:.38rem .6rem;text-align:center;font-weight:700;color:var(--yellow)">${fmtM(cf.monto)}${cf.moneda==='dolares'?`<div style="font-size:.62rem;font-weight:400;color:var(--muted)">US$${cf.montoOriginal} × $${cf.tipoCambio}</div>`:''}</td>
         <td style="padding:.38rem .6rem;text-align:center;font-size:.75rem;color:var(--muted)">${cf.diavenc||'—'}</td>
-        <td style="padding:.38rem .6rem"><button onclick="eliminarCostoFijo('${cf.id}')" class="del-btn" style="font-size:.62rem;padding:.15rem .35rem">✕</button></td>
+        <td style="padding:.38rem .6rem"><button onclick="abrirNuevoCostoFijo('${cf.id}')" class="nbtn" style="font-size:.62rem;padding:.15rem .35rem;margin-right:.3rem">✏️</button><button onclick="eliminarCostoFijo('${cf.id}')" class="del-btn" style="font-size:.62rem;padding:.15rem .35rem">✕</button></td>
       </tr>`).join('')}</tbody>
     </table></div>`:'<p style="color:var(--muted);font-size:.82rem">Sin costos fijos configurados.</p>'}
   `;
+  renderTotalCostosFijos();
 }
 
-function abrirNuevoCostoFijo(){
+let _costoFijoEditId=null;
+function abrirNuevoCostoFijo(id){
+  _costoFijoEditId=id||null;
+  const cf=_costoFijoEditId?costosFijos.find(c=>c.id===_costoFijoEditId):null;
   document.getElementById('nuevoCostoFijoModal').classList.add('open');
   document.getElementById('nuevoCostoFijoModal').style.display='flex';
   document.body.style.overflow='hidden';
-  document.getElementById('ncf_nombre').value='';
-  document.getElementById('ncf_monto').value='';
-  document.getElementById('ncf_dia').value='';
-  document.getElementById('ncf_moneda').value='pesos';
-  document.getElementById('ncf_tipocambio').value='';
-  document.getElementById('ncf_tc_box').style.display='none';
-  document.getElementById('ncf_monto_label').textContent='Monto ($) *';
-  document.getElementById('ncf_preview').style.display='none';
+  const tit=document.querySelector('#nuevoCostoFijoModal .modal-title');
+  if(tit)tit.textContent=cf?'✏️ EDITAR COSTO FIJO':'➕ NUEVO COSTO FIJO';
+  document.getElementById('ncf_nombre').value=cf?cf.nombre:'';
+  document.getElementById('ncf_dia').value=cf?(cf.diavenc||''):'';
+  if(cf&&cf.moneda==='dolares'){
+    document.getElementById('ncf_moneda').value='dolares';
+    document.getElementById('ncf_monto').value=cf.montoOriginal;
+    document.getElementById('ncf_tipocambio').value=cf.tipoCambio;
+  }else{
+    document.getElementById('ncf_moneda').value='pesos';
+    document.getElementById('ncf_monto').value=cf?cf.monto:'';
+    document.getElementById('ncf_tipocambio').value='';
+  }
+  toggleMonedaCostoFijo();
 }
 function cerrarNuevoCostoFijo(){
   const _m_nuevoCostoFijoModal=document.getElementById('nuevoCostoFijoModal');
   _m_nuevoCostoFijoModal.classList.remove('open');
   _m_nuevoCostoFijoModal.style.display='';
   document.body.style.overflow='';
+  _costoFijoEditId=null;
 }
 function toggleMonedaCostoFijo(){
   const moneda=document.getElementById('ncf_moneda').value;
@@ -18576,12 +18654,31 @@ function confirmarNuevoCostoFijo(){
     monto=Math.round(montoIngresado*tipoCambio);
   }
   const diavenc=parseInt(document.getElementById('ncf_dia')?.value)||0;
-  costosFijos.push({id:'cf'+Date.now(),nombre,monto,diavenc:diavenc||null,moneda,montoOriginal,tipoCambio});
-  saveCostosFijos();
-  generarObligacionesMesActual();
-  cerrarNuevoCostoFijo();
-  renderCostosFijos();
-  showToast('✅ Costo fijo agregado');
+  if(_costoFijoEditId){
+    const cf=costosFijos.find(c=>c.id===_costoFijoEditId);
+    if(!cf){cerrarNuevoCostoFijo();return;}
+    cf.nombre=nombre;cf.monto=monto;cf.diavenc=diavenc||null;
+    cf.moneda=moneda;cf.montoOriginal=montoOriginal;cf.tipoCambio=tipoCambio;
+    // Reflejar el cambio en la obligación del mes actual, solo si todavía no se pagó
+    const hoy=new Date();
+    const mesKey=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+    const ob=obligacionesMes.find(o=>o.costoFijoId===cf.id&&o.mesKey===mesKey&&!o.pagado);
+    if(ob){
+      ob.nombre=cf.nombre;ob.monto=cf.monto;
+      ob.vencimiento=cf.diavenc?`${mesKey}-${String(cf.diavenc).padStart(2,'0')}`:'';
+    }
+    saveCostosFijos();
+    cerrarNuevoCostoFijo();
+    renderCostosFijos();
+    showToast('✅ Costo fijo actualizado');
+  }else{
+    costosFijos.push({id:'cf'+Date.now(),nombre,monto,diavenc:diavenc||null,moneda,montoOriginal,tipoCambio});
+    saveCostosFijos();
+    generarObligacionesMesActual();
+    cerrarNuevoCostoFijo();
+    renderCostosFijos();
+    showToast('✅ Costo fijo agregado');
+  }
 }
 function eliminarCostoFijo(id){
   if(!confirm('¿Eliminar este costo fijo? No afecta las obligaciones ya generadas.'))return;
@@ -18763,6 +18860,7 @@ function renderSueldos(){
       }).join('')}
     </div>`:'<p style="color:var(--muted);font-size:.82rem">Sin empleados activos. Agregalos desde Configuración.</p>'}
   `;
+  renderTotalCostosFijos();
 }
 
 function pagarSueldo(nombre,monto){
@@ -19375,7 +19473,7 @@ function updateDashboardExtra(){
   const dashAlerts=document.getElementById('dash-alerts');
   if(dashAlerts){dashAlerts.innerHTML=vencenHoy.length?vencenHoy.map(o=>'<div style="background:rgba(230,57,70,.1);border:1px solid rgba(230,57,70,.3);border-radius:7px;padding:.38rem .7rem;font-size:.75rem">⚠️ Vence hoy: <strong>'+o.nombre+'</strong> — '+fmtM(o.monto)+'</div>').join(''):'';}
 }
-function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();populateCatSelects();renderEmpleados();}
+function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboardExtra();populateCatSelects();renderEmpleados();setTimeout(ajustarTopBarraCostosFijos,50);}
 
 </script>
 
@@ -19600,6 +19698,21 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
       <button class="btn btn-blue" id="pdEtiquetaBtn" onclick="">🏷️ Imprimir etiquetas</button>
       <button class="btn btn-secondary" id="pdEditBtn" onclick="" style="">✏️ Editar</button>
       <button class="btn btn-secondary" onclick="closeProductDetail()">✕ Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: DETALLE COSTO PENDIENTE ═══ -->
+<div class="modal-overlay" id="detallePendienteModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title">🔍 DETALLE DEL PENDIENTE</div>
+      <button class="modal-close" onclick="cerrarDetallePendiente()">✕</button>
+    </div>
+    <div id="detallePendienteContent" style="font-size:.88rem;display:flex;flex-direction:column;gap:.5rem;margin-bottom:.5rem"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="detallePendientePagarBtn">💰 Pagar ahora</button>
+      <button class="btn btn-secondary" onclick="cerrarDetallePendiente()">Cerrar</button>
     </div>
   </div>
 </div>
