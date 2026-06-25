@@ -14296,12 +14296,13 @@ async function loadFromSupabase(){
     if(adjData&&adjData.length>0) window.stockAdjustments=adjData;
 
     // Load caja ivo from Supabase
-    try{const civData=await sbFetch('caja_ivo?select=*&limit=1');if(civData&&civData[0]){cajaIvoMovimientos=civData[0].movimientos||[];cajaIvoSaldoInicial=civData[0].saldo_inicial||0;}}catch(e){}
+    try{const civData=await sbFetch('caja_ivo?select=*&limit=1');if(civData&&civData[0]){cajaIvoMovimientos=civData[0].movimientos||[];cajaIvoSaldoInicial=civData[0].saldo_inicial||0;}}catch(e){console.warn('⚠️ CajaIvo load:',e.message);}
     // Load costos fijos from Supabase
-    try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}}catch(e){}
+    let _costosFijosCargadosOK=false;
+    try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}_costosFijosCargadosOK=true;}catch(e){console.warn('⚠️ CostosFijos load (se mantiene caché local, NO se sobreescribe Supabase):',e.message);}
     // Load configuracion from Supabase
     try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){
-      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;}}catch(e){}
+      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;}}catch(e){console.warn('⚠️ Configuracion load:',e.message);}
     // Load empleados from Supabase (migra Morena/Abel automáticamente la primera vez)
     try{
       const empData=await sbFetch('empleados?select=*');
@@ -14315,9 +14316,14 @@ async function loadFromSupabase(){
       }
       saveEmpleadosLocal();
     }catch(e){console.warn('Empleados sync:',e.message);}
-    // Rollover automático: asegura que el mes actual tenga sus obligaciones generadas
-    // tras cargar costosFijos/obligaciones desde Supabase.
-    generarObligacionesMesActual();
+    // Rollover automático: asegura que el mes actual tenga sus obligaciones generadas.
+    // Solo corre si la carga de costos_fijos desde Supabase fue exitosa, para nunca
+    // generar/persistir obligaciones a partir de un caché local vacío o desactualizado.
+    if(_costosFijosCargadosOK){
+      generarObligacionesMesActual();
+    }else{
+      showToast('⚠️ No se pudo verificar Costos Fijos con el servidor — revisá tu conexión');
+    }
     showToast('✅ Datos cargados');
     await _cargarCarritoCompras();
     renderAll();
@@ -18424,7 +18430,11 @@ function initCostosFijos(){
   try{costosFijos=JSON.parse(localStorage.getItem('mv6_costos_fijos')||'[]');}catch(e){costosFijos=[];}
   try{obligacionesMes=JSON.parse(localStorage.getItem('mv6_obligaciones')||'[]');}catch(e){obligacionesMes=[];}
   try{sueldosPagados=JSON.parse(localStorage.getItem('mv6_sueldos_pagados')||'[]');}catch(e){sueldosPagados=[];}
-  generarObligacionesMesActual();
+  // IMPORTANTE: ya no se generan obligaciones ni se guarda nada acá.
+  // generarObligacionesMesActual() ahora se llama recién después de que
+  // termine la carga real desde Supabase (ver loadFromSupabase), para
+  // nunca pisar los datos remotos con el caché local de este dispositivo
+  // (que puede estar vacío en otro navegador/dispositivo/incógnito).
 }
 
 function saveCostosFijos(){
@@ -18438,6 +18448,7 @@ function saveCostosFijos(){
 function generarObligacionesMesActual(){
   const hoy=new Date();
   const mesKey=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  let cambios=false;
   costosFijos.forEach(cf=>{
     const yaExiste=obligacionesMes.find(o=>o.costoFijoId===cf.id&&o.mesKey===mesKey);
     if(!yaExiste){
@@ -18450,9 +18461,10 @@ function generarObligacionesMesActual(){
         mesKey,pagado:false,fechaPago:'',movimientoId:'',
         medioPago:'',montoEfectivo:0,montoTransferencia:0
       });
+      cambios=true;
     }
   });
-  saveCostosFijos();
+  if(cambios) saveCostosFijos(); // solo persiste si efectivamente generó algo nuevo (rollover de mes)
 }
 
 function formatMesKey(mesKey){
@@ -19406,28 +19418,28 @@ function renderCierreMensual(){
     const neg=val<0;
     const color=tipo==='total'?(val>=0?'var(--green)':'var(--accent)'):tipo==='subtotal'?'var(--yellow)':(neg?'var(--accent)':'var(--text)');
     const fw=tipo==='total'?700:tipo==='subtotal'?700:600;
-    const fs=tipo==='total'?'1.25rem':tipo==='subtotal'?'1.1rem':'.88rem';
+    const fs=tipo==='total'?'1.75rem':tipo==='subtotal'?'1.55rem':'1.25rem';
     const border=tipo==='subtotal'?'border-top:1px solid var(--border);border-bottom:1px solid var(--border);':tipo==='total'?'border-top:2px solid var(--border);':'';
-    const pad=tipo==='normal'?'.45rem .2rem':'.55rem .2rem';
+    const pad=tipo==='normal'?'.65rem .2rem':'.8rem .2rem';
     return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:${pad};${border}">
-      <span style="font-size:${tipo==='normal'?'.85rem':'.88rem'};font-weight:${fw};${tipo!=='normal'?'text-transform:uppercase;letter-spacing:.03em;':''}">${label}</span>
+      <span style="font-size:${tipo==='normal'?'1.05rem':'1.1rem'};font-weight:${fw};${tipo!=='normal'?'text-transform:uppercase;letter-spacing:.03em;':''}">${label}</span>
       <span style="font-family:'Bebas Neue',sans-serif;font-size:${fs};color:${color}">${neg?'-':''}${fmtM(Math.abs(val))}</span>
     </div>`;
   };
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem;align-items:start">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:1.4rem;align-items:start;font-size:1.05rem">
       <!-- ESTADO DE RESULTADOS -->
       <div class="section-card" style="margin:0">
-        <h3 style="margin-bottom:.5rem">📊 Estado de Resultados</h3>
-        <div style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem">${meses[month]} ${year} · ${data.jornadas} días vendidos</div>
+        <h3 style="margin-bottom:.6rem;font-size:1.5rem">📊 Estado de Resultados</h3>
+        <div style="font-size:.88rem;color:var(--muted);margin-bottom:.7rem">${meses[month]} ${year} · ${data.jornadas} días vendidos</div>
         ${filaER('Total Ventas',data.totVentas,'normal')}
         ${filaER('CMV',-data.totCMV,'normal')}
-        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.55rem .2rem">
+        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.8rem .2rem">
           <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <span style="font-size:.88rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Utilidad Bruta</span>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--yellow)">${fmtM(data.utilidadBruta)}</span>
+            <span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em">Utilidad Bruta</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.55rem;color:var(--yellow)">${fmtM(data.utilidadBruta)}</span>
           </div>
-          <div style="font-size:.68rem;color:var(--muted);text-align:right">${data.margenBruto.toFixed(1)}% sobre ventas</div>
+          <div style="font-size:.85rem;color:var(--muted);text-align:right">${data.margenBruto.toFixed(1)}% sobre ventas</div>
         </div>
         ${filaER('Costo transferencia',-data.totCostoTransf,'normal')}
         ${filaER('Comisiones',-data.totComisiones,'normal')}
@@ -19438,8 +19450,8 @@ function renderCierreMensual(){
       </div>
       <!-- DATOS IMPORTANTES -->
       <div class="section-card" style="margin:0">
-        <h3 style="margin-bottom:.65rem">📌 Datos importantes</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem">
+        <h3 style="margin-bottom:.8rem;font-size:1.5rem">📌 Datos importantes</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.7rem">
           ${[
             ['💵 Efectivo',fmtM(data.totEfec),'green'],
             ['💳 Transferencia',fmtM(data.totTransf),'blue'],
@@ -19449,9 +19461,9 @@ function renderCierreMensual(){
             ['🎟️ Tickets',data.totTickets,'orange'],
             ['👕 Prendas',data.totPrendas,'purple'],
             ['🕰️ Vintage',data.totVintage,'purple'],
-          ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:9px;padding:.55rem .75rem;text-align:center">
-            <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">${l}</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--${c})">${v}</div>
+          ].map(([l,v,c])=>`<div style="background:var(--surface2);border-radius:10px;padding:.85rem 1rem;text-align:center">
+            <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem">${l}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.55rem;color:var(--${c})">${v}</div>
           </div>`).join('')}
         </div>
       </div>
