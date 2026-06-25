@@ -15,7 +15,8 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
 .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:.65rem 1.2rem;display:flex;align-items:center;gap:.8rem;position:sticky;top:0;z-index:500;flex-wrap:wrap}
-.sticky-panel{position:sticky;z-index:45;background:var(--bg);padding-bottom:.7rem;margin-bottom:.3rem}
+.sticky-panel{position:fixed;z-index:45;background:var(--bg);padding-bottom:.6rem}
+.sticky-panel-spacer{display:block;margin-bottom:.3rem}
 .nav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.55rem;letter-spacing:.06em;flex:1;min-width:120px}
 .nav-logo span{color:var(--accent)}
 .nav-tabs{display:flex;gap:.3rem;flex-wrap:wrap}
@@ -9923,9 +9924,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
 </div>
 
-</div>
-<!-- end mainApp -->
-
 <section class="page" id="page-metricas">
   <!-- Ranking semanal -->
   <div class="section-card" style="margin-bottom:1rem">
@@ -11422,6 +11420,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
     </div>
   </section>
+
+</div>
+<!-- end mainApp -->
 
 <!-- ═══ MODAL: NUEVO PRODUCTO ═══ -->
 <div class="modal-overlay" id="newProdModal">
@@ -18506,7 +18507,28 @@ function renderTotalCostosFijos(){
 function ajustarTopBarraCostosFijos(){
   const nav=document.querySelector('.nav');
   const navH=nav?nav.offsetHeight:0;
-  document.querySelectorAll('.sticky-panel').forEach(p=>{p.style.top=navH+'px';});
+  document.querySelectorAll('.sticky-panel').forEach(panel=>{
+    // Crear (una sola vez) un separador que reserve el espacio que el panel
+    // ocupaba en el flujo normal, ya que position:fixed lo saca del flujo.
+    let spacer=panel.nextElementSibling;
+    if(!spacer||!spacer.classList.contains('sticky-panel-spacer')){
+      spacer=document.createElement('div');
+      spacer.className='sticky-panel-spacer';
+      panel.parentNode.insertBefore(spacer,panel.nextSibling);
+    }
+    panel.style.position='fixed';
+    panel.style.top=navH+'px';
+    panel.style.zIndex='45';
+    const pageEl=panel.closest('.page');
+    // Solo medimos el ancho/posición real cuando la página está visible
+    // (si está oculta, getBoundingClientRect da todo 0 y rompería el cálculo).
+    if(pageEl&&pageEl.classList.contains('active')){
+      const r=pageEl.getBoundingClientRect();
+      panel.style.left=r.left+'px';
+      panel.style.width=r.width+'px';
+      spacer.style.height=panel.offsetHeight+'px';
+    }
+  });
 }
 window.addEventListener('resize',ajustarTopBarraCostosFijos);
 window.addEventListener('load',ajustarTopBarraCostosFijos);
