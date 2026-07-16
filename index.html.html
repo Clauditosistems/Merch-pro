@@ -10517,8 +10517,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">🧾 HISTORIAL DE COMPRAS</h2>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-      <button class="nbtn green" onclick="openNewProductFromCompras()">➕ Nuevo producto</button>
-      <button class="nbtn" onclick="openPurchaseForProduct()">📦 Registrar compra</button>
+      <button class="nbtn green" id="carritoNuevosBtn" onclick="abrirCarritoProductosNuevosModal()" style="position:relative">🆕 Compra de producto nuevo <span id="carritoNuevosCount" style="background:var(--accent);color:#fff;border-radius:10px;padding:.05rem .4rem;font-size:.7rem;margin-left:.2rem">0</span></button>
     </div>
   </div>
   <!-- Filters -->
@@ -12772,7 +12771,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="modal-overlay" id="newProdModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">➕ NUEVO PRODUCTO</div>
+      <div class="modal-title" id="newProdModalTitle">➕ NUEVO PRODUCTO</div>
       <button class="modal-close" onclick="closeNewProduct()">✕</button>
     </div>
     <form id="newProdForm" onsubmit="return false">
@@ -12827,7 +12826,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="cp-item"><span class="cpl">Gan. potencial</span><span class="cpv" id="np_calc_profit">$144.000</span></div>
       </div>
       <div class="form-actions" style="margin-top:.75rem">
-        <button class="btn btn-primary" onclick="saveNewProduct()">💾 Agregar</button>
+        <button class="btn btn-primary" id="npSaveBtn" onclick="saveNewProduct()">💾 Agregar</button>
         <button class="btn btn-secondary" onclick="closeNewProduct()">✕ Cancelar</button>
       </div>
     </form>
@@ -12843,6 +12842,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
     <div id="carritoComprasBody" style="max-height:55vh;overflow-y:auto;margin-bottom:.8rem"></div>
     <div id="carritoComprasFooter" style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--border);padding-top:.7rem"></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: CARRITO DE PRODUCTOS NUEVOS (compra) ═══ -->
+<div class="modal-overlay" id="carritoNuevosModal">
+  <div class="modal" style="max-width:680px;max-height:90vh">
+    <div class="modal-header">
+      <div class="modal-title">🆕 COMPRA DE PRODUCTOS NUEVOS</div>
+      <button class="modal-close" onclick="closeCarritoProductosNuevosModal()">✕</button>
+    </div>
+    <div id="carritoNuevosBody" style="max-height:55vh;overflow-y:auto;margin-bottom:.8rem"></div>
+    <div id="carritoNuevosFooter" style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--border);padding-top:.7rem"></div>
   </div>
 </div>
 
@@ -15634,7 +15645,7 @@ async function loadFromSupabase(){
     purchaseHistory=(purch||[]).map(p=>({
       id:p.id,productId:p.product_id,productTitle:p.product_title,
       date:p.date,qty:p.qty,cost:p.cost,sale1:p.sale1,sale2:p.sale2,
-      note:p.note,pago:p.pago
+      note:p.note,pago:p.pago,compraId:p.compra_id||null
     }));
 
     // Load jornadas
@@ -15724,6 +15735,7 @@ async function loadFromSupabase(){
     }
     showToast('✅ Datos cargados');
     await _cargarCarritoCompras();
+    await _cargarCarritoProductosNuevos();
     renderAll();
     updateModeUI();
     restorePendingJornada();
@@ -15772,7 +15784,8 @@ async function savePurchase(ph){
   const data=await _sbFetch('POST','purchases?select=id',{
     product_id:ph.productId,product_title:ph.productTitle,
     date:ph.date,qty:ph.qty,cost:ph.cost,
-    sale1:ph.sale1,sale2:ph.sale2,note:ph.note,pago:ph.pago
+    sale1:ph.sale1,sale2:ph.sale2,note:ph.note,pago:ph.pago,
+    compra_id:ph.compraId||null
   });
   if(data&&data[0])ph.id=data[0].id;
 }
@@ -17414,19 +17427,193 @@ function verDetalleCaja(jornadaId){
 }
 
 // ══ COMPRAS HISTORIAL ═════════════════════════════════════════════
-function openNewProductFromCompras(){
-  if(!isAdminMode){showToast('❌ Solo admin puede agregar productos');return;}
-  openNewProduct();
+let carritoProductosNuevos = {id:'main', items:[]};
+let modoCarritoProductosNuevos = false;
+
+async function _cargarCarritoProductosNuevos(){
+  if(!currentUser||currentUser.email==='local'){actualizarBadgeProductosNuevos();return;}
+  try{
+    const r = await _sbFetch('GET','carrito_productos_nuevos?id=eq.main&limit=1');
+    if(r && r[0]){
+      carritoProductosNuevos = {id:r[0].id, items:r[0].items||[]};
+    }
+  }catch(e){console.warn('Error cargando carrito de productos nuevos:',e);}
+  actualizarBadgeProductosNuevos();
 }
-function openPurchaseForProduct(){
+
+function _guardarCarritoProductosNuevos(){
+  if(!currentUser||currentUser.email==='local')return;
+  _sbFetch('POST','carrito_productos_nuevos?on_conflict=id',{
+    id:'main', items:carritoProductosNuevos.items,
+    updated_at:new Date().toISOString()
+  }).catch(e=>console.warn('Error guardando carrito de productos nuevos:',e));
+}
+
+function actualizarBadgeProductosNuevos(){
+  const el = document.getElementById('carritoNuevosCount');
+  if(el) el.textContent = carritoProductosNuevos.items.length;
+  const btn = document.getElementById('carritoNuevosBtn');
+  if(btn) btn.style.display = isAdminMode ? '' : 'none';
+}
+
+function abrirNuevoProductoParaCompra(){
   if(!isAdminMode){showToast('❌ Solo admin');return;}
-  if(!products.length){showToast('❌ No hay productos');return;}
-  const list=products.map((p,i)=>`${String(i+1).padStart(2,' ')}. ${p.title}`).join('\n');
-  const choice=prompt('Seleccioná el número del producto para registrar compra:\n'+list);
-  if(!choice||!choice.trim())return;
-  const idx=parseInt(choice.trim())-1;
-  if(isNaN(idx)||idx<0||idx>=products.length){showToast('❌ Número inválido');return;}
-  openNewPurchase(products[idx].id);
+  closeCarritoProductosNuevosModal();
+  modoCarritoProductosNuevos=true;
+  openNewProduct();
+  const t=document.getElementById('newProdModalTitle');if(t)t.textContent='🆕 NUEVO PRODUCTO — COMPRA';
+  const b=document.getElementById('npSaveBtn');if(b)b.textContent='➕ Sumar a la compra';
+}
+
+function agregarProductoNuevoACarrito(){
+  const title=document.getElementById('np_title')?.value.trim();if(!title){showToast('❌ Ingresá un nombre');return;}
+  const cost=parseFloat(document.getElementById('np_cost')?.value)||0;
+  if(!cost||cost<=0){showToast('❌ El costo del producto es obligatorio');document.getElementById('np_cost')?.focus();return;}
+  const sale1=parseFloat(document.getElementById('np_sale1')?.value)||0;
+  const sale2=parseFloat(document.getElementById('np_sale2')?.value)||0;
+  const ofertaVal=parseFloat(document.getElementById('np_oferta')?.value)||0;
+  const qty=parseInt(document.getElementById('np_qty')?.value)||0;
+  const stock=parseInt(document.getElementById('np_stock')?.value);
+  const fs=isNaN(stock)?qty:stock;
+  const item={
+    tempId:'tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+    tag:document.getElementById('np_tag')?.value||'General',
+    title,
+    supplier:document.getElementById('np_supplier_list')?.value||document.getElementById('np_supplier')?.value||'—',
+    provTipo:document.getElementById('np_prov_tipo')?.value||'',
+    cost,sale1,sale1_label:'x1',sale2,
+    sale2_label:document.getElementById('np_s2l')?.value||'x2',
+    oferta:ofertaVal,qty:fs,
+    date:document.getElementById('np_date')?.value||todayStr(),
+    obs:document.getElementById('np_obs')?.value||''
+  };
+  carritoProductosNuevos.items.push(item);
+  _guardarCarritoProductosNuevos();
+  actualizarBadgeProductosNuevos();
+  document.getElementById('newProdForm').reset();
+  npEditImgs=[];renderNpImgGallery();
+  const prev=document.getElementById('newImgPreview');if(prev)prev.classList.remove('visible');
+  showToast('✅ '+title+' agregado a la compra ('+carritoProductosNuevos.items.length+')');
+}
+
+function quitarDeCarritoNuevos(tempId){
+  carritoProductosNuevos.items = carritoProductosNuevos.items.filter(i=>i.tempId!==tempId);
+  _guardarCarritoProductosNuevos();
+  actualizarBadgeProductosNuevos();
+  renderCarritoProductosNuevosModal();
+}
+
+function cambiarCampoCarritoNuevos(tempId, campo, val){
+  const it = carritoProductosNuevos.items.find(i=>i.tempId===tempId);
+  if(!it) return;
+  const n = campo==='qty'?parseInt(val):parseFloat(val);
+  it[campo] = isNaN(n)?0:Math.max(0,n);
+  _guardarCarritoProductosNuevos();
+}
+
+function abrirCarritoProductosNuevosModal(){
+  if(!isAdminMode){showToast('❌ Solo admin');return;}
+  if(!carritoProductosNuevos.items.length){
+    abrirNuevoProductoParaCompra();
+    return;
+  }
+  renderCarritoProductosNuevosModal();
+  const m = document.getElementById('carritoNuevosModal');
+  if(!m)return;
+  m.classList.add('open'); m.style.display='flex'; m.style.zIndex='99999';
+  document.body.style.overflow='hidden';
+}
+
+function closeCarritoProductosNuevosModal(){
+  const m = document.getElementById('carritoNuevosModal');
+  if(!m)return;
+  m.classList.remove('open'); m.style.display=''; document.body.style.overflow='';
+}
+
+function renderCarritoProductosNuevosModal(){
+  const body = document.getElementById('carritoNuevosBody');
+  const footer = document.getElementById('carritoNuevosFooter');
+  if(!body||!footer)return;
+
+  if(!carritoProductosNuevos.items.length){
+    body.innerHTML = '<p style="text-align:center;color:var(--muted);padding:2rem">No hay productos cargados todavía.</p>';
+    footer.innerHTML = `<button class="btn btn-primary" onclick="abrirNuevoProductoParaCompra()">➕ Cargar producto nuevo</button>`;
+    return;
+  }
+
+  const rows = carritoProductosNuevos.items.map(it=>{
+    return `<div style="display:flex;gap:.6rem;align-items:center;padding:.5rem;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div style="flex:1;min-width:140px">
+        <div style="font-weight:600;font-size:.85rem">${it.title}</div>
+        <div style="font-size:.7rem;color:var(--muted)">${it.supplier||'Sin proveedor'} · ${it.tag||'General'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.1rem">
+        <label style="font-size:.62rem;color:var(--muted)">Cant.</label>
+        <input type="number" min="0" value="${it.qty}" onchange="cambiarCampoCarritoNuevos('${it.tempId}','qty',this.value)" style="width:55px;padding:.3rem;text-align:center;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:.1rem">
+        <label style="font-size:.62rem;color:var(--muted)">Costo</label>
+        <input type="number" min="0" value="${it.cost}" onchange="cambiarCampoCarritoNuevos('${it.tempId}','cost',this.value)" style="width:90px;padding:.3rem;text-align:center;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+      </div>
+      <button class="del-btn" onclick="quitarDeCarritoNuevos('${it.tempId}')">✕</button>
+    </div>`;
+  }).join('');
+
+  const totalGeneral = carritoProductosNuevos.items.reduce((s,i)=>s+(i.cost*i.qty),0);
+  body.innerHTML = `<div style="margin-bottom:.5rem;padding:.4rem .6rem;border-radius:6px;font-size:.75rem;background:rgba(74,158,255,.12);color:var(--blue)">🆕 ${carritoProductosNuevos.items.length} producto(s) nuevo(s) cargado(s) — Total: ${fmtM(totalGeneral)}</div>${rows}`;
+  footer.innerHTML = `<button class="btn" onclick="abrirNuevoProductoParaCompra()">➕ Agregar otro producto</button>
+    <button class="btn btn-primary" onclick="confirmarCompraProductosNuevos()">✅ Confirmar compra</button>`;
+}
+
+function confirmarCompraProductosNuevos(){
+  if(!carritoProductosNuevos.items.length){showToast('❌ No hay productos cargados');return;}
+  if(!confirm('¿Confirmar la compra de '+carritoProductosNuevos.items.length+' producto(s) nuevo(s)? Se van a crear en el catálogo y quedar registrados como una sola compra.'))return;
+
+  const compraId = 'cpn_'+Date.now();
+  const fecha = todayStr();
+  let creados = 0;
+
+  carritoProductosNuevos.items.forEach(it=>{
+    const newP={id:nextId++,tag:it.tag||'General',title:it.title,
+      supplier:it.supplier||'—',provTipo:it.provTipo||'',
+      cost:fmtM(it.cost),sale1:fmtM(it.sale1),sale1_label:'x1',
+      sale2:fmtM(it.sale2),sale2_label:it.sale2_label||'x2',
+      oferta:it.oferta>0?fmtM(it.oferta):'$0',
+      qty_num:it.qty,qty_display:it.qty+' unidades',total_cost:fmtM(it.cost*it.qty),
+      single:true,img1:'',img2:'',imgs:[]};
+    newP.barcode=generateBarcode(newP.id);
+    newP.stock_inicial=it.qty;
+    newP.fecha_ultima_compra=fecha;
+    products.push(newP);
+    stockMap[newP.id]=it.qty;
+    extraMap[newP.id]={date:fecha,obs:it.obs||''};
+
+    const ph={id:Date.now()+Math.random(),productId:newP.id,productTitle:newP.title,date:fecha,
+      qty:it.qty,cost:it.cost,sale1:it.sale1,sale2:it.sale2,
+      note:'Compra de productos nuevos',pago:'efectivo',compraId};
+    purchaseHistory.push(ph);
+    savePurchase(ph).catch(e=>console.warn('savePurchase:',e));
+
+    _sbFetch('POST','products?on_conflict=id',{
+      id:newP.id,tag:newP.tag,title:newP.title,supplier:newP.supplier,
+      cost:newP.cost,sale1:newP.sale1,sale1_label:'x1',sale2:newP.sale2,
+      sale2_label:newP.sale2_label,oferta:newP.oferta||'$0',
+      qty_num:newP.qty_num,qty_display:newP.qty_display,
+      total_cost:newP.total_cost,single:true,
+      img1:'',img2:'',imgs:[],obs:it.obs||'',active:true,barcode:newP.barcode,
+      provTipo:newP.provTipo||'',stock_inicial:newP.stock_inicial,
+      fecha_ultima_compra:newP.fecha_ultima_compra
+    }).catch(e=>console.warn('Save product error:',e));
+    _sbFetch('POST','stock?on_conflict=product_id',{product_id:newP.id,qty:it.qty}).catch(e=>console.warn('Save stock error:',e));
+    creados++;
+  });
+
+  saveAll();renderAll();
+  carritoProductosNuevos={id:'main',items:[]};
+  _guardarCarritoProductosNuevos();
+  actualizarBadgeProductosNuevos();
+  closeCarritoProductosNuevosModal();
+  showToast(`✅ Compra registrada: ${creados} producto(s) nuevo(s) creado(s)`);
 }
 function renderComprasHist(){
   const list=document.getElementById('comprasHistList');if(!list)return;
@@ -17480,6 +17667,55 @@ function renderComprasHist(){
     const dayTotal=items.reduce((s,h)=>s+(h.cost*h.qty),0);
     const dayQty=items.reduce((s,h)=>s+h.qty,0);
     const grpId='cg-'+date.replace(/-/g,'');
+
+    // Separar ítems que pertenecen a una compra agrupada (compraId) de los sueltos
+    const grouped={};
+    const ungrouped=[];
+    items.forEach(h=>{
+      if(h.compraId){
+        if(!grouped[h.compraId])grouped[h.compraId]=[];
+        grouped[h.compraId].push(h);
+      }else{
+        ungrouped.push(h);
+      }
+    });
+
+    const ungroupedRows=ungrouped.map(h=>`<tr>
+                <td style="font-weight:500">${h.productTitle||'—'}</td>
+                <td>${h.qty}</td>
+                <td>${fmtM(h.cost)}</td>
+                <td style="color:var(--accent);font-weight:600">${fmtM(h.cost*h.qty)}</td>
+                <td><span style="font-size:.7rem;color:${h.pago==='transferencia'?'var(--blue)':'var(--green)'}">${h.pago==='transferencia'?'💳 Transf.':'💵 Efec.'}</span></td>
+                <td style="font-size:.72rem;color:var(--muted)">${h.note||'—'}</td>
+                <td><button class="del-btn" style="background:rgba(74,158,255,.15);color:var(--blue);border-color:rgba(74,158,255,.3);font-size:.68rem;padding:.18rem .4rem" onclick="openEditPurchaseForm('${h.id}')">✏️</button></td>
+              </tr>`).join('');
+
+    const groupedRows=Object.entries(grouped).map(([cid,gItems])=>{
+      const gTotal=gItems.reduce((s,h)=>s+(h.cost*h.qty),0);
+      const subGrpId='cpn-'+cid;
+      return `<tr>
+                <td colspan="7" style="padding:0">
+                  <div onclick="toggleComprasDay('${subGrpId}')" style="cursor:pointer;padding:.5rem .3rem;display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap">
+                    <span style="font-weight:600">🆕 Compra de productos nuevos (${gItems.length} producto${gItems.length!==1?'s':''})</span>
+                    <span style="color:var(--accent);font-weight:600;display:flex;align-items:center;gap:.4rem">${fmtM(gTotal)} <span id="arr-${subGrpId}" style="color:var(--muted);font-size:.8rem;transition:transform .2s">▼</span></span>
+                  </div>
+                  <div id="${subGrpId}" style="display:none;padding:.2rem 0 .4rem 1rem">
+                    <table class="hist-tbl" style="width:100%">
+                      <tbody>
+                        ${gItems.map(h=>`<tr>
+                          <td style="font-weight:500">${h.productTitle||'—'}</td>
+                          <td>${h.qty}</td>
+                          <td>${fmtM(h.cost)}</td>
+                          <td style="color:var(--accent);font-weight:600">${fmtM(h.cost*h.qty)}</td>
+                          <td><button class="del-btn" style="background:rgba(74,158,255,.15);color:var(--blue);border-color:rgba(74,158,255,.3);font-size:.68rem;padding:.18rem .4rem" onclick="openEditPurchaseForm('${h.id}')">✏️</button></td>
+                        </tr>`).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>`;
+    }).join('');
+
     return `<div class="caja-hist-card" style="margin-bottom:.55rem">
       <div onclick="toggleComprasDay('${grpId}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem">
         <div>
@@ -17496,15 +17732,7 @@ function renderComprasHist(){
           <table class="hist-tbl">
             <thead><tr><th>Producto</th><th>Cant.</th><th>Costo unit.</th><th>Total</th><th>Pago</th><th>Nota</th><th></th></tr></thead>
             <tbody>
-              ${items.map(h=>`<tr>
-                <td style="font-weight:500">${h.productTitle||'—'}</td>
-                <td>${h.qty}</td>
-                <td>${fmtM(h.cost)}</td>
-                <td style="color:var(--accent);font-weight:600">${fmtM(h.cost*h.qty)}</td>
-                <td><span style="font-size:.7rem;color:${h.pago==='transferencia'?'var(--blue)':'var(--green)'}">${h.pago==='transferencia'?'💳 Transf.':'💵 Efec.'}</span></td>
-                <td style="font-size:.72rem;color:var(--muted)">${h.note||'—'}</td>
-                <td><button class="del-btn" style="background:rgba(74,158,255,.15);color:var(--blue);border-color:rgba(74,158,255,.3);font-size:.68rem;padding:.18rem .4rem" onclick="openEditPurchaseForm('${h.id}')">✏️</button></td>
-              </tr>`).join('')}
+              ${ungroupedRows}${groupedRows}
             </tbody>
           </table>
         </div>
@@ -17930,7 +18158,11 @@ function openNewProduct(){
   const prev=document.getElementById('newImgPreview');if(prev)prev.classList.remove('visible');
   renderNpImgGallery();
 }
-function closeNewProduct(){document.getElementById('newProdModal').classList.remove('open'); document.getElementById('newProdModal').style.display=''; document.body.style.overflow='';}
+function closeNewProduct(){document.getElementById('newProdModal').classList.remove('open'); document.getElementById('newProdModal').style.display=''; document.body.style.overflow='';
+  modoCarritoProductosNuevos=false;
+  const t=document.getElementById('newProdModalTitle');if(t)t.textContent='➕ NUEVO PRODUCTO';
+  const b=document.getElementById('npSaveBtn');if(b)b.textContent='💾 Agregar';
+}
 function updateNewCalc(){
   const c=parseFloat(document.getElementById('np_cost')?.value)||0;
   const s=parseFloat(document.getElementById('np_sale1')?.value)||0;
@@ -17981,6 +18213,7 @@ function handleNpImgDrop(e){
   showToast('❌ Arrastrá un archivo de imagen');
 }
 function saveNewProduct(){
+  if(modoCarritoProductosNuevos){agregarProductoNuevoACarrito();return;}
   const title=document.getElementById('np_title')?.value.trim();if(!title){showToast('❌ Ingresá un nombre');return;}
   const cost=parseFloat(document.getElementById('np_cost')?.value)||0;
   if(!cost||cost<=0){showToast('❌ El costo del producto es obligatorio');document.getElementById('np_cost')?.focus();return;}
