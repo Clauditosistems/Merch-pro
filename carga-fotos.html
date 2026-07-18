@@ -45,6 +45,11 @@
   .empty-msg{text-align:center;color:var(--muted);padding:2.5rem 1rem;font-size:.9rem}
   .detail-photos{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0;justify-content:center}
   .detail-photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+  .photo-item{position:relative;width:72px;height:72px;margin-bottom:.6rem}
+  .photo-item.principal img{border:2px solid var(--accent)}
+  .photo-badge{position:absolute;bottom:-2px;left:-1px;right:-1px;background:var(--accent);color:#fff;font-size:.52rem;text-align:center;border-radius:0 0 6px 6px;padding:.06rem 0;font-weight:700}
+  .photo-del{position:absolute;top:-7px;right:-7px;background:var(--red);color:#fff;border:2px solid var(--bg);border-radius:50%;width:22px;height:22px;font-size:.72rem;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+  .photo-star{position:absolute;bottom:-7px;left:-7px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:22px;height:22px;font-size:.72rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
   .toast{position:fixed;bottom:1.2rem;left:1rem;right:1rem;background:var(--green);color:#fff;padding:.8rem 1rem;border-radius:10px;font-weight:600;text-align:center;font-size:.9rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:opacity .3s,transform .3s}
   .toast.hide{opacity:0;transform:translateY(10px)}
   .toast.error{background:var(--red);color:#fff}
@@ -291,12 +296,55 @@ function abrirDetalle(id){
   document.getElementById('detailMeta').textContent = imgs.length
     ? `${imgs.length} foto(s) cargada(s)`
     : 'Sin fotos todavía';
-  document.getElementById('detailPhotos').innerHTML = imgs.map(u=>`<img src="${u}">`).join('');
+  document.getElementById('detailPhotos').innerHTML = imgs.map((u,i)=>`
+    <div class="photo-item ${i===0?'principal':''}">
+      <img src="${u}">
+      ${i===0
+        ? '<div class="photo-badge">Principal</div>'
+        : `<button class="photo-star" onclick="hacerPrincipal(${i})" title="Hacer foto principal">⭐</button>`}
+      <button class="photo-del" onclick="eliminarFoto(${i})" title="Eliminar foto">✕</button>
+    </div>
+  `).join('');
   document.getElementById('uploadStatus').textContent='';
   const btn=document.getElementById('btnSacarFoto');
   btn.disabled = imgs.length>=5;
   btn.textContent = imgs.length>=5 ? '⚠️ Ya tiene el máximo de 5 fotos' : '📸 Sacar foto';
   showScreen('detailScreen');
+}
+
+async function guardarFotosProducto(imgs, mensajeExito){
+  const status=document.getElementById('uploadStatus');
+  status.innerHTML='<span class="spinner"></span>Guardando...';
+  try{
+    const patchBody = { imgs, img1: imgs[0]||'', img2: imgs[1]||'' };
+    await sbPatch('products?id=eq.'+selectedProduct.id, patchBody);
+    selectedProduct.imgs=imgs; selectedProduct.img1=imgs[0]||''; selectedProduct.img2=imgs[1]||'';
+    const idx=products.findIndex(p=>p.id===selectedProduct.id);
+    if(idx>=0)products[idx]=selectedProduct;
+    status.textContent='';
+    showToast('✅ '+mensajeExito);
+    abrirDetalle(selectedProduct.id);
+  }catch(err){
+    status.textContent='';
+    showToast('❌ Error: '+err.message, true);
+  }
+}
+
+async function eliminarFoto(index){
+  if(!selectedProduct)return;
+  if(!confirm('¿Eliminar esta foto?'))return;
+  const imgs = imagenesLimpias(selectedProduct);
+  imgs.splice(index,1);
+  await guardarFotosProducto(imgs, 'Foto eliminada');
+}
+
+async function hacerPrincipal(index){
+  if(!selectedProduct)return;
+  const imgs = imagenesLimpias(selectedProduct);
+  if(index<=0||index>=imgs.length)return;
+  const [moved]=imgs.splice(index,1);
+  imgs.unshift(moved);
+  await guardarFotosProducto(imgs, 'Foto principal actualizada');
 }
 
 async function onFotoSeleccionada(e){

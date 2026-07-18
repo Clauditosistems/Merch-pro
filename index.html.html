@@ -18346,7 +18346,7 @@ function saveProduct(){
   p.oferta=ofertaEdit>0?fmtM(ofertaEdit):'$0';
   p.sale2_label=document.getElementById('f_s2l')?.value||p.sale2_label;p.total_cost=fmtM(cost*qty);
   const ns=parseInt(document.getElementById('f_stock')?.value);if(!isNaN(ns))stockMap[p.id]=Math.max(0,ns);
-  if(editImgs.length>0){p.img1=editImgs[0].src;p.img2=editImgs.length>1?editImgs[1].src:'';p.imgs=editImgs.map(x=>x.src);}
+  p.img1=editImgs[0]?.src||'';p.img2=editImgs[1]?.src||'';p.imgs=editImgs.map(x=>x.src);
   extraMap[p.id]={date:document.getElementById('f_date')?.value||'',obs:document.getElementById('f_obs')?.value||''};
   saveAll();renderAll();cancelEdit();showToast('✅ Guardado correctamente');
   // Subir imágenes base64 a Storage antes de sincronizar (nunca guardar base64 en la DB)
