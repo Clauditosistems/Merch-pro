@@ -200,6 +200,7 @@ async function intentarSesionGuardada(){
     const s=JSON.parse(raw);
     if(!s.access_token)return;
     accessToken=s.access_token;currentUser=s.user;
+    await refrescarSesion(); // renueva el token proactivamente por si ya venció
     await cargarProductos();
     let pendingId=null;
     try{pendingId=sessionStorage.getItem('cf_pending_product');}catch(e){}
@@ -214,19 +215,53 @@ async function intentarSesionGuardada(){
 }
 
 // ── PRODUCTOS ──────────────────────────────────────────
-async function sbGet(path){
+async function refrescarSesion(){
+  try{
+    const raw=localStorage.getItem('cf_session');
+    if(!raw)return false;
+    const s=JSON.parse(raw);
+    if(!s.refresh_token)return false;
+    const res=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:s.refresh_token})
+    });
+    const data=await res.json();
+    if(!res.ok||!data.access_token)return false;
+    accessToken=data.access_token;
+    localStorage.setItem('cf_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user||s.user}));
+    return true;
+  }catch(e){return false;}
+}
+
+function sesionVencida(){
+  showToast('⚠️ Tu sesión venció. Iniciá sesión de nuevo.', true);
+  logout();
+}
+
+async function sbGet(path, _retried){
   const res=await fetch(SUPA_URL+'/rest/v1/'+path,{
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+accessToken}
   });
+  if(res.status===401 && !_retried){
+    if(await refrescarSesion())return sbGet(path, true);
+    sesionVencida();
+    throw new Error('Sesión vencida');
+  }
   if(!res.ok)throw new Error('HTTP '+res.status);
   return res.json();
 }
-async function sbPatch(path, body){
+async function sbPatch(path, body, _retried){
   const res=await fetch(SUPA_URL+'/rest/v1/'+path,{
     method:'PATCH',
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':'application/json','Prefer':'return=minimal'},
     body:JSON.stringify(body)
   });
+  if(res.status===401 && !_retried){
+    if(await refrescarSesion())return sbPatch(path, body, true);
+    sesionVencida();
+    throw new Error('Sesión vencida');
+  }
   if(!res.ok){const t=await res.text();throw new Error('HTTP '+res.status+': '+t);}
 }
 
