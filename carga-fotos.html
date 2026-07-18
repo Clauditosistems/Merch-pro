@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>📸 Carga de Fotos — Merch Pro</title>
+<link rel="icon" href="data:,">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+  :root{
+    --bg:#F7F5F2; --card:#FFFFFF; --surface2:#EDE9E3; --border:#D5CBBF; --text:#2A2420;
+    --muted:#8C7B6B; --accent:#C4955A; --accent2:#E8B97A; --green:#5A8A5A; --red:#D4793A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent}
+  .screen{display:none;min-height:100vh;flex-direction:column}
+  .screen.active{display:flex}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;z-index:10}
+  header h1{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:.04em;margin:0}
+  header button{background:none;border:none;color:var(--muted);font-size:.85rem;padding:.4rem;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer}
+  main{flex:1;padding:1rem;overflow-y:auto}
+  input, .btn{width:100%;padding:.85rem 1rem;border-radius:10px;border:1px solid var(--border);font-size:1rem;background:var(--card);color:var(--text);font-family:'DM Sans',sans-serif}
+  input::placeholder{color:var(--muted)}
+  input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .btn{cursor:pointer;font-weight:600;text-align:center;border:none;transition:opacity .15s}
+  .btn:active{opacity:.75}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-secondary{background:var(--surface2);color:var(--text)}
+  .stack{display:flex;flex-direction:column;gap:.6rem}
+  .row{display:flex;gap:.6rem}
+  .err{color:var(--red);font-size:.85rem;min-height:1.1rem;margin-top:.4rem}
+  .prod-item{display:flex;align-items:center;gap:.7rem;padding:.7rem;background:var(--card);border:1px solid var(--border);border-radius:10px;cursor:pointer}
+  .prod-item:active{opacity:.7}
+  .prod-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--surface2);flex-shrink:0}
+  .prod-thumb.empty{display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--muted)}
+  .prod-info{flex:1;min-width:0}
+  .prod-title{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prod-meta{font-size:.72rem;color:var(--muted);margin-top:.15rem}
+  .badge-nofoto{display:inline-block;background:rgba(212,121,58,.15);color:var(--red);font-size:.65rem;padding:.1rem .4rem;border-radius:5px;margin-top:.2rem;font-weight:600}
+  .badge-ok{display:inline-block;background:rgba(90,138,90,.15);color:var(--green);font-size:.65rem;padding:.1rem .4rem;border-radius:5px;margin-top:.2rem;font-weight:600}
+  .empty-msg{text-align:center;color:var(--muted);padding:2.5rem 1rem;font-size:.9rem}
+  .detail-photos{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0;justify-content:center}
+  .detail-photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+  .toast{position:fixed;bottom:1.2rem;left:1rem;right:1rem;background:var(--green);color:#fff;padding:.8rem 1rem;border-radius:10px;font-weight:600;text-align:center;font-size:.9rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:opacity .3s,transform .3s}
+  .toast.hide{opacity:0;transform:translateY(10px)}
+  .toast.error{background:var(--red);color:#fff}
+  #scanModal{display:none;position:fixed;inset:0;background:#000;z-index:99999;flex-direction:column}
+  #scanModal.open{display:flex}
+  #qr-reader{width:100%;flex:1}
+  .scan-close{padding:1rem;background:var(--card)}
+  .spinner{width:18px;height:18px;border:3px solid rgba(196,149,90,.3);border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:spin .7s linear infinite;vertical-align:middle;margin-right:.4rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="screen active" id="loginScreen">
+  <main style="justify-content:center;display:flex;flex-direction:column">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:2.2rem">📸</div>
+      <h1 style="margin:.4rem 0 0">Carga de Fotos</h1>
+      <div style="color:var(--muted);font-size:.85rem">Merch Pro</div>
+    </div>
+    <div class="stack">
+      <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn btn-primary" id="loginBtn" onclick="loginUser()">Ingresar</button>
+      <div class="err" id="loginErr"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ BUSCADOR ═══ -->
+<div class="screen" id="searchScreen">
+  <header>
+    <h1>📸 Carga de Fotos</h1>
+    <button onclick="logout()">Salir</button>
+  </header>
+  <main>
+    <div class="stack">
+      <input type="text" id="searchInput" placeholder="Buscar producto por nombre..." oninput="renderList()">
+      <button class="btn btn-outline" onclick="abrirScanner()">📷 Escanear código de barras</button>
+      <button class="btn btn-outline" id="btnFiltroSinFoto" onclick="toggleFiltroSinFoto()">🔴 Ver solo sin foto</button>
+    </div>
+    <div id="prodCount" style="color:var(--muted);font-size:.78rem;margin:.8rem 0 .5rem"></div>
+    <div class="stack" id="prodList"></div>
+  </main>
+</div>
+
+<!-- ═══ DETALLE / SACAR FOTO ═══ -->
+<div class="screen" id="detailScreen">
+  <header>
+    <button onclick="volverALista()">← Volver</button>
+    <h1 style="font-size:.9rem">Cargar foto</h1>
+    <span></span>
+  </header>
+  <main>
+    <div style="text-align:center">
+      <div style="font-weight:700;font-size:1.05rem" id="detailTitle"></div>
+      <div style="color:var(--muted);font-size:.8rem;margin-top:.2rem" id="detailMeta"></div>
+    </div>
+    <div class="detail-photos" id="detailPhotos" style="justify-content:center"></div>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="onFotoSeleccionada(event)">
+    <div class="stack" style="margin-top:1rem">
+      <button class="btn btn-green" id="btnSacarFoto" onclick="document.getElementById('cameraInput').click()">📸 Sacar foto</button>
+    </div>
+    <div id="uploadStatus" style="text-align:center;margin-top:1rem;color:var(--muted);font-size:.85rem"></div>
+  </main>
+</div>
+
+<!-- ═══ MODAL ESCÁNER ═══ -->
+<div id="scanModal">
+  <div id="qr-reader"></div>
+  <div class="scan-close"><button class="btn btn-secondary" onclick="cerrarScanner()">✕ Cerrar escáner</button></div>
+</div>
+
+<script>
+const SUPA_URL='https://kxtidabdmrlbxzhhvxdz.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4dGlkYWJkbXJsYnh6aGh2eGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNzQ1NjEsImV4cCI6MjA5MzY1MDU2MX0.a5lgsryo4gol9lTD4bAHbYI9a9GiTLKCNn5YUS87Ncg';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let accessToken=null, currentUser=null, products=[], selectedProduct=null, html5Qr=null, filtroSinFoto=false;
+
+function toggleFiltroSinFoto(){
+  filtroSinFoto = !filtroSinFoto;
+  const btn=document.getElementById('btnFiltroSinFoto');
+  btn.textContent = filtroSinFoto ? '✅ Viendo solo sin foto (tocá para ver todos)' : '🔴 Ver solo sin foto';
+  btn.style.background = filtroSinFoto ? 'var(--red)' : 'transparent';
+  btn.style.color = filtroSinFoto ? '#fff' : 'var(--text)';
+  btn.style.borderColor = filtroSinFoto ? 'var(--red)' : 'var(--border)';
+  renderList();
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showToast(msg, isError){
+  const t=document.createElement('div');
+  t.className='toast'+(isError?' error':'');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.classList.add('hide');setTimeout(()=>t.remove(),300);},2200);
+}
+
+// ── LOGIN ──────────────────────────────────────────────
+async function loginUser(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPassword').value;
+  const btn=document.getElementById('loginBtn');
+  const err=document.getElementById('loginErr');
+  err.textContent='';
+  if(!email||!pass){err.textContent='Completá email y contraseña';return;}
+  btn.textContent='Ingresando...';btn.disabled=true;
+  try{
+    const res=await fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass})
+    });
+    const data=await res.json();
+    if(!res.ok||!data.access_token){
+      err.textContent=data.error_description||data.msg||'Email o contraseña incorrectos';
+      btn.textContent='Ingresar';btn.disabled=false;
+      return;
+    }
+    accessToken=data.access_token;
+    currentUser=data.user;
+    try{localStorage.setItem('cf_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));}catch(e){}
+    btn.textContent='Ingresar';btn.disabled=false;
+    await cargarProductos();
+    showScreen('searchScreen');
+  }catch(e){
+    err.textContent='Error de conexión: '+e.message;
+    btn.textContent='Ingresar';btn.disabled=false;
+  }
+}
+
+function logout(){
+  accessToken=null;currentUser=null;products=[];
+  try{localStorage.removeItem('cf_session');}catch(e){}
+  showScreen('loginScreen');
+}
+
+async function intentarSesionGuardada(){
+  try{
+    const raw=localStorage.getItem('cf_session');
+    if(!raw)return;
+    const s=JSON.parse(raw);
+    if(!s.access_token)return;
+    accessToken=s.access_token;currentUser=s.user;
+    await cargarProductos();
+    showScreen('searchScreen');
+  }catch(e){}
+}
+
+// ── PRODUCTOS ──────────────────────────────────────────
+async function sbGet(path){
+  const res=await fetch(SUPA_URL+'/rest/v1/'+path,{
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+accessToken}
+  });
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  return res.json();
+}
+async function sbPatch(path, body){
+  const res=await fetch(SUPA_URL+'/rest/v1/'+path,{
+    method:'PATCH',
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify(body)
+  });
+  if(!res.ok){const t=await res.text();throw new Error('HTTP '+res.status+': '+t);}
+}
+
+async function cargarProductos(){
+  document.getElementById('prodCount').textContent='Cargando productos...';
+  try{
+    products = await sbGet('products?select=id,title,barcode,img1,img2,imgs&active=eq.true&order=title.asc');
+    renderList();
+  }catch(e){
+    showToast('❌ Error cargando productos: '+e.message, true);
+  }
+}
+
+function renderList(){
+  const q=(document.getElementById('searchInput').value||'').trim().toLowerCase();
+  const list=document.getElementById('prodList');
+  let filtered = q ? products.filter(p=>(p.title||'').toLowerCase().includes(q)) : products.slice();
+  if(filtroSinFoto) filtered = filtered.filter(p=>!p.img1);
+  const sinFoto = products.filter(p=>!p.img1).length;
+  document.getElementById('prodCount').textContent = q || filtroSinFoto
+    ? `${filtered.length} resultado(s)`
+    : `${products.length} productos · ${sinFoto} sin foto`;
+
+  if(!filtered.length){
+    list.innerHTML='<div class="empty-msg">No se encontraron productos.</div>';
+    return;
+  }
+  // Mostrar como máximo 60 a la vez para que no sea pesado en el celular
+  const toShow = filtered.slice(0,60);
+  list.innerHTML = toShow.map(p=>{
+    const thumb = p.img1
+      ? `<img class="prod-thumb" src="${p.img1}">`
+      : `<div class="prod-thumb empty">📦</div>`;
+    const badge = p.img1 ? `<span class="badge-ok">✓ con foto</span>` : `<span class="badge-nofoto">Sin foto</span>`;
+    return `<div class="prod-item" onclick="abrirDetalle(${p.id})">
+      ${thumb}
+      <div class="prod-info">
+        <div class="prod-title">${p.title}</div>
+        <div class="prod-meta">${badge}</div>
+      </div>
+    </div>`;
+  }).join('');
+  if(filtered.length>60){
+    list.innerHTML += `<div class="empty-msg">Mostrando 60 de ${filtered.length}. Afiná la búsqueda para ver más.</div>`;
+  }
+}
+
+function volverALista(){
+  showScreen('searchScreen');
+  renderList();
+}
+
+// ── DETALLE / SUBIR FOTO ────────────────────────────────
+function imagenesLimpias(p){
+  // Une imgs + img1/img2, descarta vacíos/duplicados — corrige productos con datos corruptos de antes
+  const all = [...(p.imgs||[]), p.img1, p.img2].filter(Boolean);
+  return [...new Set(all)];
+}
+
+function abrirDetalle(id){
+  selectedProduct = products.find(p=>p.id===id);
+  if(!selectedProduct)return;
+  document.getElementById('detailTitle').textContent = selectedProduct.title;
+  const imgs = imagenesLimpias(selectedProduct);
+  document.getElementById('detailMeta').textContent = imgs.length
+    ? `${imgs.length} foto(s) cargada(s)`
+    : 'Sin fotos todavía';
+  document.getElementById('detailPhotos').innerHTML = imgs.map(u=>`<img src="${u}">`).join('');
+  document.getElementById('uploadStatus').textContent='';
+  const btn=document.getElementById('btnSacarFoto');
+  btn.disabled = imgs.length>=5;
+  btn.textContent = imgs.length>=5 ? '⚠️ Ya tiene el máximo de 5 fotos' : '📸 Sacar foto';
+  showScreen('detailScreen');
+}
+
+async function onFotoSeleccionada(e){
+  const file=e.target.files[0];
+  e.target.value='';
+  if(!file || !selectedProduct)return;
+  const status=document.getElementById('uploadStatus');
+  const btn=document.getElementById('btnSacarFoto');
+  btn.disabled=true;
+  status.innerHTML='<span class="spinner"></span>Subiendo foto...';
+  try{
+    const blob = await comprimirImagen(file, 1280, 0.82);
+    const imgs = imagenesLimpias(selectedProduct);
+    if(imgs.length>=5){showToast('❌ Ese producto ya tiene 5 fotos (máximo)', true);status.textContent='';btn.disabled=false;return;}
+
+    const path=`products/${selectedProduct.id}_${imgs.length}_${Date.now()}.jpg`;
+    const { error: upErr } = await supa.storage.from('product-images').upload(path, blob, { upsert:true, contentType:'image/jpeg' });
+    if(upErr) throw new Error(upErr.message);
+    const { data: urlData } = supa.storage.from('product-images').getPublicUrl(path);
+    const newUrl = urlData.publicUrl;
+
+    imgs.push(newUrl);
+    const patchBody = { imgs, img1: imgs[0]||'', img2: imgs[1]||'' };
+    await sbPatch('products?id=eq.'+selectedProduct.id, patchBody);
+
+    // Actualizar en memoria
+    selectedProduct.imgs=imgs; selectedProduct.img1=imgs[0]||''; selectedProduct.img2=imgs[1]||'';
+    const idx=products.findIndex(p=>p.id===selectedProduct.id);
+    if(idx>=0)products[idx]=selectedProduct;
+
+    status.textContent='';
+    showToast('✅ Foto agregada ('+imgs.length+'/5)');
+    abrirDetalle(selectedProduct.id);
+  }catch(err){
+    status.textContent='';
+    showToast('❌ Error subiendo la foto: '+err.message, true);
+    btn.disabled=false;
+  }
+}
+
+function comprimirImagen(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const img=new Image();
+    const reader=new FileReader();
+    reader.onload=()=>{
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        if(w>h && w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}
+        else if(h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('No se pudo procesar la imagen')), 'image/jpeg', quality);
+      };
+      img.onerror=()=>reject(new Error('No se pudo leer la imagen'));
+      img.src=reader.result;
+    };
+    reader.onerror=()=>reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── ESCÁNER DE CÓDIGO DE BARRAS ─────────────────────────
+function abrirScanner(){
+  if(typeof Html5Qrcode==='undefined'){
+    showToast('⚠️ El escáner necesita conexión a internet. Buscá el producto escribiendo el nombre.', true);
+    return;
+  }
+  document.getElementById('scanModal').classList.add('open');
+  html5Qr = new Html5Qrcode('qr-reader', {
+    formatsToSupport:[
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.QR_CODE
+    ]
+  });
+  html5Qr.start(
+    {facingMode:'environment'},
+    {fps:10, qrbox:{width:260,height:150}},
+    onCodigoEscaneado,
+    ()=>{}
+  ).catch(e=>{
+    const esPermiso = String(e).toLowerCase().includes('permission')||String(e).toLowerCase().includes('notallowed');
+    showToast(esPermiso
+      ? '❌ Permiso de cámara denegado. Activalo en ⓘ junto a la URL → Permisos → Cámara.'
+      : '❌ No se pudo abrir la cámara: '+e, true);
+    cerrarScanner();
+  });
+}
+
+function onCodigoEscaneado(decodedText){
+  const prod = products.find(p=>p.barcode===decodedText);
+  cerrarScanner();
+  if(prod){
+    abrirDetalle(prod.id);
+  }else{
+    showToast('⚠️ No se encontró ningún producto con ese código', true);
+  }
+}
+
+function cerrarScanner(){
+  document.getElementById('scanModal').classList.remove('open');
+  if(html5Qr){
+    html5Qr.stop().then(()=>html5Qr.clear()).catch(()=>{});
+    html5Qr=null;
+  }
+}
+
+// ── INICIO ───────────────────────────────────────────────
+intentarSesionGuardada();
+</script>
+</body>
+</html>
