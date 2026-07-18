@@ -196,7 +196,15 @@ async function intentarSesionGuardada(){
     if(!s.access_token)return;
     accessToken=s.access_token;currentUser=s.user;
     await cargarProductos();
-    showScreen('searchScreen');
+    let pendingId=null;
+    try{pendingId=sessionStorage.getItem('cf_pending_product');}catch(e){}
+    if(pendingId!==null && products.some(p=>String(p.id)===String(pendingId))){
+      // La página se recargó mientras estabas cargando una foto — te devolvemos al mismo producto
+      abrirDetalle(parseInt(pendingId));
+      showToast('↩️ Volviste a "'+selectedProduct.title+'" — sacá la foto de nuevo');
+    }else{
+      showScreen('searchScreen');
+    }
   }catch(e){}
 }
 
@@ -262,6 +270,7 @@ function renderList(){
 }
 
 function volverALista(){
+  try{sessionStorage.removeItem('cf_pending_product');}catch(e){}
   showScreen('searchScreen');
   renderList();
 }
@@ -276,6 +285,7 @@ function imagenesLimpias(p){
 function abrirDetalle(id){
   selectedProduct = products.find(p=>p.id===id);
   if(!selectedProduct)return;
+  try{sessionStorage.setItem('cf_pending_product', id);}catch(e){}
   document.getElementById('detailTitle').textContent = selectedProduct.title;
   const imgs = imagenesLimpias(selectedProduct);
   document.getElementById('detailMeta').textContent = imgs.length
@@ -292,7 +302,13 @@ function abrirDetalle(id){
 async function onFotoSeleccionada(e){
   const file=e.target.files[0];
   e.target.value='';
-  if(!file || !selectedProduct)return;
+  if(!file)return;
+  if(!selectedProduct){
+    // El celular probablemente descargó la página de memoria mientras la cámara estaba abierta,
+    // y se perdió qué producto tenías seleccionado. Avisamos en vez de fallar en silencio.
+    showToast('⚠️ Se perdió la selección del producto (pasa a veces al usar la cámara). Volvé a elegirlo y sacá la foto de nuevo.', true);
+    return;
+  }
   const status=document.getElementById('uploadStatus');
   const btn=document.getElementById('btnSacarFoto');
   btn.disabled=true;
