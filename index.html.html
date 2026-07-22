@@ -10925,11 +10925,15 @@ function recalcCajaIvoSaldos(){
 
 function buildCajaIvoRows(){
   const filtro=document.getElementById('cajaIvoFiltro')?.value||'all';
+  const filtroFecha=document.getElementById('cajaIvoFiltroFecha')?.value||'';
+  const filtroId=(document.getElementById('cajaIvoFiltroId')?.value||'').trim();
   const sorted=[...cajaIvoMovimientos].sort((a,b)=>(b.numId||0)-(a.numId||0));
-  const filtered=filtro==='all'?sorted:
+  let filtered=filtro==='all'?sorted:
     filtro==='entrada'?sorted.filter(m=>(m.entrada||0)>0&&m.tipo!=='arqueo'):
     filtro==='salida'?sorted.filter(m=>(m.salida||0)>0&&m.tipo!=='arqueo'):
     sorted.filter(m=>m.tipo==='arqueo');
+  if(filtroFecha) filtered=filtered.filter(m=>m.fecha===filtroFecha);
+  if(filtroId) filtered=filtered.filter(m=>String(m.numId||'').includes(filtroId));
   if(!filtered.length)return '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted);font-size:.8rem">Sin movimientos para este filtro.</td></tr>';
   return filtered.map(function(m){
     const isArqueo=m.tipo==='arqueo';
@@ -10940,6 +10944,10 @@ function buildCajaIvoRows(){
     const tipoLabel=isArqueo?'🔍 Arqueo':isEntrada?'📥 '+(m.subtipo||'Ingreso'):'📤 '+((CAJA_IVO_SALIDAS.find(function(s){return s.key===m.subtipo;})||{}).label||m.subtipo||'Salida');
     const tipoBg=isArqueo?'rgba(74,158,255,.15)':isEntrada?'rgba(67,185,127,.15)':'rgba(230,57,70,.12)';
     const tipoColor=isArqueo?'var(--blue)':isEntrada?'var(--green)':'var(--accent)';
+    const tieneOrigen=!!m.jornadaId||isArqueo;
+    const tipoSpanAttrs=tieneOrigen
+      ?'onclick="verOrigenMovCajaIvo(\''+m.id+'\')" title="Ver origen" style="cursor:pointer;text-decoration:underline dotted;background:'+tipoBg+';color:'+tipoColor+';border-radius:5px;padding:.12rem .42rem;font-size:.67rem;font-weight:700;white-space:nowrap"'
+      :'style="background:'+tipoBg+';color:'+tipoColor+';border-radius:5px;padding:.12rem .42rem;font-size:.67rem;font-weight:700;white-space:nowrap"';
     const entrada=isArqueo?'':((m.entrada||0)>0?fmtM(m.entrada):'');
     const salida=isArqueo?'':((m.salida||0)>0?fmtM(m.salida):'');
     const saldoCell=isArqueo?'<span style="font-size:.65rem;color:var(--blue)">verificación</span>':fmtM(saldoMostrar);
@@ -10947,11 +10955,11 @@ function buildCajaIvoRows(){
     return '<tr style="'+rowBg+';border-bottom:1px solid var(--border)">'+
       '<td style="padding:.38rem .55rem;text-align:center;font-size:.65rem;color:var(--muted);font-family:monospace">#'+(m.numId||'—')+'</td>'+
       '<td style="padding:.38rem .75rem;font-size:.74rem;white-space:nowrap"><div style="font-weight:600">'+(m.fecha||'—')+'</div><div style="color:var(--muted);font-size:.67rem">'+(m.hora||'')+'</div></td>'+
-      '<td style="padding:.38rem .75rem"><span style="background:'+tipoBg+';color:'+tipoColor+';border-radius:5px;padding:.12rem .42rem;font-size:.67rem;font-weight:700;white-space:nowrap">'+tipoLabel+'</span></td>'+
+      '<td style="padding:.38rem .75rem"><span '+tipoSpanAttrs+'>'+tipoLabel+'</span></td>'+
       '<td style="padding:.38rem .75rem;text-align:right;font-weight:700;color:var(--green);font-size:.82rem">'+entrada+'</td>'+
       '<td style="padding:.38rem .75rem;text-align:right;font-weight:700;color:var(--accent);font-size:.82rem">'+salida+'</td>'+
       '<td style="padding:.38rem .75rem;text-align:right;font-family:Bebas Neue,sans-serif;font-size:1rem;color:'+saldoColor+'">'+saldoCell+'</td>'+
-      '<td style="padding:.38rem .75rem;font-size:.76rem;color:var(--muted);max-width:220px">'+detalle+'</td>'+
+      '<td style="padding:.38rem .75rem;font-size:.76rem;color:var(--muted);max-width:220px">'+detalle+' <button onclick="editarDetalleMovCajaIvo(\''+m.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;opacity:.55;padding:0 .15rem;vertical-align:middle" title="Editar detalle">✏️</button></td>'+
       '<td style="padding:.38rem .75rem"><button class="del-btn" style="font-size:.62rem;padding:.15rem .35rem" onclick="eliminarMovCajaIvo(this.dataset.id)" data-id="'+m.id+'">✕</button></td>'+
       '</tr>';
   }).join('');
@@ -10997,13 +11005,16 @@ function renderCajaIvo(){
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.4rem">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.04em">Movimientos</div>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+          <input type="date" id="cajaIvoFiltroFecha" onchange="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
+          <input type="text" id="cajaIvoFiltroId" placeholder="Buscar ID..." oninput="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif;width:100px">
           <select id="cajaIvoFiltro" onchange="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
             <option value="all">Todos</option>
             <option value="entrada">Solo entradas</option>
             <option value="salida">Solo salidas</option>
             <option value="arqueo">Solo arqueos</option>
           </select>
+          <button onclick="limpiarFiltrosCajaIvo()" class="btn" style="font-size:.7rem;padding:.28rem .6rem;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif">✕ Limpiar</button>
         </div>
       </div>
       ${cajaIvoMovimientos.length?`
@@ -11144,6 +11155,40 @@ function eliminarMovCajaIvo(id){
   cajaIvoMovimientos=cajaIvoMovimientos.filter(m=>m.id!==id);
   saveCajaIvo();renderCajaIvo();
   showToast('🗑️ Movimiento eliminado');
+}
+
+function editarDetalleMovCajaIvo(id){
+  const m=cajaIvoMovimientos.find(x=>String(x.id)===String(id));
+  if(!m)return;
+  const nuevo=prompt('Editar detalle del movimiento:', m.detalle||'');
+  if(nuevo===null)return; // canceló
+  m.detalle=nuevo.trim();
+  saveCajaIvo();
+  renderCajaIvo();
+  showToast('✅ Detalle actualizado');
+}
+
+function limpiarFiltrosCajaIvo(){
+  const f=document.getElementById('cajaIvoFiltroFecha');if(f)f.value='';
+  const i=document.getElementById('cajaIvoFiltroId');if(i)i.value='';
+  const s=document.getElementById('cajaIvoFiltro');if(s)s.value='all';
+  renderCajaIvo();
+}
+
+function verOrigenMovCajaIvo(id){
+  const m=cajaIvoMovimientos.find(x=>String(x.id)===String(id));
+  if(!m)return;
+  if(m.jornadaId){
+    if(typeof viewJornada==='function'){
+      viewJornada(m.jornadaId,false);
+    }else{
+      showToast('❌ No se pudo abrir la jornada');
+    }
+    return;
+  }
+  if(m.tipo==='arqueo'){
+    alert('🔍 DETALLE DEL ARQUEO\n\n'+(m.detalle||'')+'\n\nFecha: '+(m.fecha||'—')+' '+(m.hora||''));
+  }
 }
 
 function setSaldoInicial(){
