@@ -10646,11 +10646,14 @@ function confirmarPagoProveedor(){
   p.saldo=Math.max(0,(p.saldo||0)-importe);
   saveProveedores();
   if(confirm(`¿Descontar ${fmtM(importe)} de Caja Ivo también?\nMedio: ${medio}`)){
-    if(!cajaIvoMovimientos)cajaIvoMovimientos=[];
-    cajaIvoMovimientos.push({id:'civ'+Date.now(),numId:_nextCajaIvoNumId(),fecha,hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),tipo:'salida',subtipo:'proveedor',entrada:0,salida:importe,detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,medio});
-    cajaIvoSaldoInicial=(cajaIvoSaldoInicial||0)-importe;
-    saveCajaIvo();
-    if(typeof renderCajaPage==='function')renderCajaPage();
+    const saldoActual=getCajaIvoSaldo();
+    const continuar=importe<=saldoActual||confirm(`⚠️ El importe (${fmtM(importe)}) supera el saldo actual de Caja Ivo (${fmtM(saldoActual)}).\n¿Continuar de todas formas?`);
+    if(continuar){
+      if(!cajaIvoMovimientos)cajaIvoMovimientos=[];
+      cajaIvoMovimientos.push({id:'civ'+Date.now(),numId:_nextCajaIvoNumId(),fecha,hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),tipo:'salida',subtipo:'proveedor',entrada:0,salida:importe,detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,medio});
+      saveCajaIvo();
+      if(typeof renderCajaPage==='function')renderCajaPage();
+    }
   }
   closePagoProveedor();openDetalleProveedor(currentProveedorId);
   showToast('✅ Pago registrado — Saldo: '+fmtM(p.saldo));
@@ -10998,21 +11001,59 @@ function renderCajaIvo(){
         </div>`).join('')}
     </div>`:'';
 
+  // Paso 5: Resumen de totales hoy / este mes (excluye arqueos, que no mueven saldo)
+  const _hoy=todayStr();
+  const _mesActual=_hoy.slice(0,7);
+  const _noArqueo=cajaIvoMovimientos.filter(m=>m.tipo!=='arqueo');
+  const _deHoy=_noArqueo.filter(m=>m.fecha===_hoy);
+  const _delMes=_noArqueo.filter(m=>(m.fecha||'').startsWith(_mesActual));
+  const _sumCampo=(arr,campo)=>arr.reduce((s,m)=>s+(m[campo]||0),0);
+  const resumenHtml=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.5rem;margin-bottom:1rem">
+      <div class="caja-card"><div class="caja-lbl">Hoy · Ingresos</div><div class="caja-val" style="color:var(--green)">+${fmtM(_sumCampo(_deHoy,'entrada'))}</div></div>
+      <div class="caja-card"><div class="caja-lbl">Hoy · Salidas</div><div class="caja-val" style="color:var(--accent)">−${fmtM(_sumCampo(_deHoy,'salida'))}</div></div>
+      <div class="caja-card"><div class="caja-lbl">Este mes · Ingresos</div><div class="caja-val" style="color:var(--green)">+${fmtM(_sumCampo(_delMes,'entrada'))}</div></div>
+      <div class="caja-card"><div class="caja-lbl">Este mes · Salidas</div><div class="caja-val" style="color:var(--accent)">−${fmtM(_sumCampo(_delMes,'salida'))}</div></div>
+    </div>`;
+
+  // Paso 7: Descuadres de arqueo (solo arqueos con diferencia distinta de cero)
+  const _arqueosConDif=cajaIvoMovimientos.filter(m=>m.tipo==='arqueo'&&(m.diferencia||0)!==0)
+    .sort((a,b)=>((b.fecha||'')+'T'+(b.hora||'')).localeCompare((a.fecha||'')+'T'+(a.hora||'')));
+  const descuadresHtml=_arqueosConDif.length?`
+    <div style="background:rgba(230,57,70,.05);border:1px solid rgba(230,57,70,.2);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem">
+      <div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.09em;color:var(--accent);font-weight:700;margin-bottom:.5rem">📋 DESCUADRES DE ARQUEO (${_arqueosConDif.length})</div>
+      ${_arqueosConDif.map(m=>{
+        const dif=m.diferencia||0;
+        const difColor=dif>0?'var(--yellow)':'var(--accent)';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid rgba(230,57,70,.12);flex-wrap:wrap;gap:.4rem;cursor:pointer" onclick="verOrigenMovCajaIvo('${m.id}')">
+          <div><span style="font-size:.82rem;font-weight:600">📅 ${m.fecha||'—'}</span> <span style="font-size:.7rem;color:var(--muted)">${m.hora||''}</span></div>
+          <div style="font-size:.8rem;font-weight:700;color:${difColor}">${dif>=0?'+':''}${fmtM(dif)}</div>
+        </div>`;
+      }).join('')}
+    </div>`:'';
+
+  // Preservar el estado actual de los filtros antes de reconstruir el HTML (si no, se resetean visualmente en cada render)
+  const _filtroFechaVal=document.getElementById('cajaIvoFiltroFecha')?.value||'';
+  const _filtroIdVal=document.getElementById('cajaIvoFiltroId')?.value||'';
+  const _filtroTipoVal=document.getElementById('cajaIvoFiltro')?.value||'all';
+
   document.getElementById('cajaIvoContent').innerHTML=`
     ${pendientesHtml}
+    ${resumenHtml}
+    ${descuadresHtml}
 
     <!-- Tabla de movimientos -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.4rem">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.04em">Movimientos</div>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
-          <input type="date" id="cajaIvoFiltroFecha" onchange="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
-          <input type="text" id="cajaIvoFiltroId" placeholder="Buscar ID..." oninput="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif;width:100px">
+          <input type="date" id="cajaIvoFiltroFecha" value="${_filtroFechaVal}" onchange="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
+          <input type="text" id="cajaIvoFiltroId" placeholder="Buscar ID..." value="${_filtroIdVal}" oninput="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif;width:100px">
           <select id="cajaIvoFiltro" onchange="renderCajaIvo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
-            <option value="all">Todos</option>
-            <option value="entrada">Solo entradas</option>
-            <option value="salida">Solo salidas</option>
-            <option value="arqueo">Solo arqueos</option>
+            <option value="all" ${_filtroTipoVal==='all'?'selected':''}>Todos</option>
+            <option value="entrada" ${_filtroTipoVal==='entrada'?'selected':''}>Solo entradas</option>
+            <option value="salida" ${_filtroTipoVal==='salida'?'selected':''}>Solo salidas</option>
+            <option value="arqueo" ${_filtroTipoVal==='arqueo'?'selected':''}>Solo arqueos</option>
           </select>
           <button onclick="limpiarFiltrosCajaIvo()" class="btn" style="font-size:.7rem;padding:.28rem .6rem;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif">✕ Limpiar</button>
         </div>
