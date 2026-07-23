@@ -466,10 +466,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="sticky-panel" style="position: fixed; top: 55px; z-index: 45; left: 572.5px; width: 1400px;">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1.1rem">
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">📦 CONTROL DE STOCK</h2>
-    <div id="stockAdminBtns" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
-      <button class="nbtn green" onclick="openNewProduct()">➕ Nuevo producto</button>
-      <button class="nbtn" onclick="openAjusteStock()">📋 Ajuste de stock</button>
-      <button class="nbtn" id="carritoComprasBtn" onclick="abrirCarritoCompras()" style="position:relative">🛒 Carrito de compras <span id="carritoComprasCount" style="background:var(--accent);color:#fff;border-radius:10px;padding:.05rem .4rem;font-size:.7rem;margin-left:.2rem">0</span></button>
+    <div style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:center">
+      <div id="stockAdminBtns" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+        <button class="nbtn green" onclick="openNewProduct()">➕ Nuevo producto</button>
+        <button class="nbtn" id="carritoComprasBtn" onclick="abrirCarritoCompras()" style="position:relative">🛒 Carrito de compras <span id="carritoComprasCount" style="background:var(--accent);color:#fff;border-radius:10px;padding:.05rem .4rem;font-size:.7rem;margin-left:.2rem">0</span></button>
+      </div>
+      <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+        <button class="nbtn" onclick="openAjusteStock()">📋 Ajuste de stock</button>
+      </div>
     </div>
   </div>
   <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
