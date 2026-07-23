@@ -407,6 +407,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="nav-tab admin-only" onclick="showPage('listaCompras',this)" style="">🛒 Lista de Compras</button>
     <button class="nav-tab admin-only" id="tab-proveedores" onclick="showPage('proveedores',this)" style="">🏭 Proveedores</button>
     <button class="nav-tab admin-only active" onclick="showPage('cajaIvo',this)" style="">💰 Caja Ivo</button>
+    <button class="nav-tab admin-only" onclick="showPage('cajaTransfer',this)" style="">💳 Caja Transferencias</button>
     <button class="nav-tab admin-only" onclick="showPage('costosFijos',this)" style="">📋 Costos Fijos</button>
     <button class="nav-tab admin-only" onclick="showPage('patrimonio',this)" style="">🏛️ Patrimonio</button>
     <button class="nav-tab admin-only" onclick="showPage('configuracion',this)" style="">⚙️ Configuración</button>
@@ -3401,6 +3402,28 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
   </div>
+</section>
+
+<section class="page" id="page-cajaTransfer">
+  <div class="sticky-panel" style="position: fixed; top: 55px; z-index: 45; left: 572.5px; width: 1400px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.05em">💳 CAJA TRANSFERENCIAS</h2>
+    <span style="font-size:.75rem;color:var(--muted)">🔒 Solo administrador · Solo transferencias · Se actualiza sola al cerrar cada jornada</span>
+  </div>
+  <!-- Saldo y acciones -->
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:stretch">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem 1.2rem;flex:1;min-width:180px">
+      <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Saldo actual (transferencias)</div>
+      <div id="cajaTransferSaldoTxt" style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--green);letter-spacing:.04em">$0</div>
+      <div id="cajaTransferMovCountTxt" style="font-size:.68rem;color:var(--muted);margin-top:.2rem">0 movimientos</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.45rem;justify-content:center">
+      <button class="btn btn-primary" style="font-size:.78rem" onclick="openCajaTransferSalida()">➖ Registrar salida</button>
+      <button class="btn btn-secondary" id="cajaTransferDefSaldoBtn" style="font-size:.72rem" onclick="setSaldoInicialTransfer()">💵 Definir saldo inicial</button>
+    </div>
+  </div>
+  </div><div class="sticky-panel-spacer" style="height: 150px;"></div>
+  <div id="cajaTransferContent" style="margin-top:1rem"></div>
 </section>
 
 <section class="page" id="page-costosFijos">
@@ -6816,6 +6839,13 @@ async function loadFromSupabase(){
       _cajaIvoListo=true; // solo se marca listo si la consulta a Supabase realmente respondió
     }catch(e){console.warn('⚠️ CajaIvo load:',e.message);}
     if(typeof _migrarCajaIvoNumIds==='function')_migrarCajaIvoNumIds();
+    // Load caja transferencias from Supabase
+    try{
+      const ctfData=await sbFetch('caja_transfer?select=*&limit=1');
+      if(ctfData&&ctfData[0]){cajaTransferMovimientos=ctfData[0].movimientos||[];cajaTransferSaldoInicial=ctfData[0].saldo_inicial||0;}
+      _cajaTransferListo=true;
+    }catch(e){console.warn('⚠️ CajaTransfer load:',e.message);}
+    if(typeof _migrarCajaTransferNumIds==='function')_migrarCajaTransferNumIds();
     // Load costos fijos from Supabase
     let _costosFijosCargadosOK=false;
     try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}_costosFijosCargadosOK=true;}catch(e){console.warn('⚠️ CostosFijos load (se mantiene caché local, NO se sobreescribe Supabase):',e.message);}
@@ -7003,6 +7033,7 @@ function initData(){
   // mv6_adj key migrada a mv6_ajustes
   initProveedores();
   initCajaIvo();
+  initCajaTransfer();
   initCostosFijos();
   initEmpleados();
   // Cargar historial de ajustes
@@ -7194,6 +7225,7 @@ function showPage(id,btn){
   }
   if(id==='proveedores'){renderProveedores();}
   if(id==='cajaIvo'){renderCajaIvo();}
+  if(id==='cajaTransfer'){renderCajaTransfer();}
   if(id==='cierreMensual'){renderCierreMensual();}
   if(id==='listaCompras'){renderListaComprasPage();}
   if(id==='costosFijos'){renderCostosFijos();renderSueldos();}
@@ -7933,6 +7965,35 @@ function confirmarGuardar(){
     clientesHoy,tickets:ventaRows.length
   };
   ventasHistory.push(jornada);
+  // Caja Transferencias: se genera sola al cerrar la jornada, sin paso de confirmación manual.
+  // Si todavía no terminó de sincronizar con Supabase, se omite silenciosamente acá y queda
+  // detectada como "pendiente" en la pantalla de Caja Transferencias para generarla a mano.
+  if(_cajaTransferListo){
+    const editLogCountOrigen=(jornada.editLog||[]).length;
+    if(totTransf>0){
+      cajaTransferMovimientos.push({
+        id:'ctf'+Date.now(),numId:_nextCajaTransferNumId(),
+        fecha:todayStr(),hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+        tipo:'ingreso',subtipo:'Jornada cerrada',
+        detalle:`Jornada ${jornada.fecha} · ${jornada.tickets||0} tickets · ${jornada.vendedor||'—'}`,
+        entrada:totTransf,salida:0,
+        jornadaId:jornada.id,fechaJornada:jornada.fecha,editLogCountOrigen
+      });
+    }
+    if(costoTransferencias>0){
+      cajaTransferMovimientos.push({
+        id:'ctf'+(Date.now()+1),numId:_nextCajaTransferNumId(),
+        fecha:todayStr(),hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+        tipo:'salida',subtipo:'comision',
+        detalle:`Comisión transferencias · Jornada ${jornada.fecha}`,
+        entrada:0,salida:costoTransferencias,
+        jornadaId:jornada.id,fechaJornada:jornada.fecha,editLogCountOrigen
+      });
+    }
+    if(totTransf>0||costoTransferencias>0)saveCajaTransfer();
+  }else{
+    console.warn('Caja Transferencias no estaba sincronizada — el movimiento de esta jornada queda pendiente de generar manualmente.');
+  }
   cajaHistory.push({
     jornadaId:jornada.id,fecha,vendedor,totalVentas:totV,totEfec,totTransf,
     totalGastos:totGastos,comisiones,costoTransferencias,cmv,totalDesc,clientesHoy,
@@ -11261,6 +11322,350 @@ function verOrigenMovCajaIvo(id){
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// CAJA TRANSFERENCIAS — se carga sola al cerrar cada jornada (ver confirmarGuardar)
+// ══════════════════════════════════════════════════════════════════
+let cajaTransferMovimientos=[];
+let cajaTransferSaldoInicial=0;
+let _cajaTransferListo=false;
+
+const CAJA_TRANSFER_SALIDAS=[
+  {key:'retiro',   label:'🏦 Retiro / transferencia a otra cuenta'},
+  {key:'comision', label:'💳 Comisión de transferencias'},
+  {key:'ajuste',   label:'⚖️ Ajuste manual'},
+  {key:'otros',    label:'📝 Otros'},
+];
+
+function _nextCajaTransferNumId(){
+  return (cajaTransferMovimientos.reduce((max,m)=>Math.max(max,m.numId||0),0))+1;
+}
+
+function _migrarCajaTransferNumIds(){
+  const sinId=cajaTransferMovimientos.filter(m=>!m.numId);
+  if(!sinId.length)return;
+  const porFecha=[...cajaTransferMovimientos].sort((a,b)=>{
+    const da=(a.fecha||'')+'T'+(a.hora||'00:00');
+    const db=(b.fecha||'')+'T'+(b.hora||'00:00');
+    return da>db?1:da<db?-1:0;
+  });
+  let n=0;
+  porFecha.forEach(m=>{n++;if(!m.numId)m.numId=n;});
+  saveCajaTransfer();
+}
+
+function initCajaTransfer(){
+  try{
+    const raw=localStorage.getItem('mv6_cajatransfer');
+    if(raw){
+      const parsed=JSON.parse(raw);
+      cajaTransferMovimientos=parsed.movimientos||[];
+      cajaTransferSaldoInicial=parsed.saldoInicial||0;
+    }
+  }catch(e){cajaTransferMovimientos=[];cajaTransferSaldoInicial=0;}
+  _migrarCajaTransferNumIds();
+}
+
+function saveCajaTransfer(){
+  try{localStorage.setItem('mv6_cajatransfer',JSON.stringify({movimientos:cajaTransferMovimientos,saldoInicial:cajaTransferSaldoInicial}));}catch(e){}
+  _sbFetch('POST','caja_transfer?on_conflict=id',[{id:1,movimientos:cajaTransferMovimientos||[],saldo_inicial:cajaTransferSaldoInicial||0,updated_at:new Date().toISOString()}]).catch(e=>console.warn('CajaTransfer sync:',e.message));
+}
+
+function _cajaTransferPuedeGuardar(){
+  if(!_cajaTransferListo){
+    showToast('⏳ Todavía se está sincronizando Caja Transferencias con el servidor. Esperá unos segundos y volvé a intentar.');
+    return false;
+  }
+  return true;
+}
+
+function getCajaTransferSaldo(){
+  let saldo=cajaTransferSaldoInicial;
+  cajaTransferMovimientos.forEach(m=>{saldo+=(m.entrada||0)-(m.salida||0);});
+  return saldo;
+}
+
+function recalcCajaTransferSaldos(){
+  let saldo=cajaTransferSaldoInicial;
+  const ordenados=[...cajaTransferMovimientos].sort((a,b)=>{
+    const da=(a.fecha||'')+'T'+(a.hora||'00:00');
+    const db=(b.fecha||'')+'T'+(b.hora||'00:00');
+    return da>db?1:da<db?-1:0;
+  });
+  ordenados.forEach(m=>{
+    saldo+=(m.entrada||0)-(m.salida||0);
+    m.saldoAcum=saldo;
+  });
+}
+
+// Genera (o regenera) los movimientos automáticos de una jornada puntual
+function generarMovCajaTransferDeJornada(jornadaId){
+  if(!_cajaTransferPuedeGuardar())return;
+  const j=ventasHistory.find(x=>x.id===jornadaId);
+  if(!j){showToast('❌ No se encontró la jornada');return;}
+  // Evitar duplicar si ya existe
+  const yaExiste=cajaTransferMovimientos.some(m=>m.jornadaId===jornadaId);
+  if(yaExiste){showToast('⚠️ Esta jornada ya tiene movimiento generado');return;}
+  const totTransf=j.totalTransf||0;
+  const costoTransferencias=j.costoTransferencias||0;
+  const editLogCountOrigen=(j.editLog||[]).length;
+  if(totTransf>0){
+    cajaTransferMovimientos.push({
+      id:'ctf'+Date.now(),numId:_nextCajaTransferNumId(),
+      fecha:todayStr(),hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+      tipo:'ingreso',subtipo:'Jornada cerrada',
+      detalle:`Jornada ${j.fecha} · ${j.tickets||0} tickets · ${j.vendedor||'—'}`,
+      entrada:totTransf,salida:0,
+      jornadaId:j.id,fechaJornada:j.fecha,editLogCountOrigen
+    });
+  }
+  if(costoTransferencias>0){
+    cajaTransferMovimientos.push({
+      id:'ctf'+(Date.now()+1),numId:_nextCajaTransferNumId(),
+      fecha:todayStr(),hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+      tipo:'salida',subtipo:'comision',
+      detalle:`Comisión transferencias · Jornada ${j.fecha}`,
+      entrada:0,salida:costoTransferencias,
+      jornadaId:j.id,fechaJornada:j.fecha,editLogCountOrigen
+    });
+  }
+  saveCajaTransfer();renderCajaTransfer();
+  showToast('✅ Movimiento generado para la jornada '+j.fecha);
+}
+
+function openCajaTransferSalida(){
+  document.getElementById('cajaTransferSalidaModal').classList.add('open');
+  document.getElementById('cajaTransferSalidaModal').style.display='flex';
+  document.body.style.overflow='hidden';
+  document.getElementById('cts_importe').value='';
+  document.getElementById('cts_detalle').value='';
+  document.getElementById('cts_fecha').value=todayStr();
+  document.getElementById('cts_tipo').value='retiro';
+}
+function closeCajaTransferSalida(){
+  const _m=document.getElementById('cajaTransferSalidaModal');
+  _m.classList.remove('open');
+  _m.style.display='';
+  document.body.style.overflow='';
+}
+function confirmarCajaTransferSalida(){
+  if(!_cajaTransferPuedeGuardar())return;
+  const importe=parseFloat(document.getElementById('cts_importe')?.value)||0;
+  if(importe<=0){showToast('❌ Ingresá un importe válido');return;}
+  const tipo=document.getElementById('cts_tipo')?.value||'otros';
+  const detalle=(document.getElementById('cts_detalle')?.value||'').trim();
+  const fecha=document.getElementById('cts_fecha')?.value||todayStr();
+  const saldoActual=getCajaTransferSaldo();
+  if(importe>saldoActual){
+    if(!confirm(`⚠️ El importe (${fmtM(importe)}) supera el saldo actual (${fmtM(saldoActual)}).\n¿Continuar de todas formas?`))return;
+  }
+  const mov={
+    id:'cts'+Date.now(),numId:_nextCajaTransferNumId(),
+    fecha,hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),
+    tipo:'salida',subtipo:tipo,
+    detalle:detalle||(CAJA_TRANSFER_SALIDAS.find(s=>s.key===tipo)?.label||tipo),
+    entrada:0,salida:importe
+  };
+  cajaTransferMovimientos.push(mov);
+  saveCajaTransfer();closeCajaTransferSalida();renderCajaTransfer();
+  showToast(`✅ Salida registrada — ${fmtM(importe)}`);
+}
+
+function setSaldoInicialTransfer(){
+  const val=prompt('Ingresá el saldo inicial de Caja Transferencias (en $):', '0');
+  if(val===null)return;
+  const n=parseFloat(val);
+  if(isNaN(n)){showToast('❌ Valor inválido');return;}
+  cajaTransferSaldoInicial=n;
+  saveCajaTransfer();renderCajaTransfer();
+  showToast('✅ Saldo inicial definido: '+fmtM(n));
+}
+
+function eliminarMovCajaTransfer(id){
+  if(!confirm('¿Eliminar este movimiento?'))return;
+  cajaTransferMovimientos=cajaTransferMovimientos.filter(m=>m.id!==id);
+  saveCajaTransfer();renderCajaTransfer();
+  showToast('🗑️ Movimiento eliminado');
+}
+
+function editarDetalleMovCajaTransfer(id){
+  const m=cajaTransferMovimientos.find(x=>String(x.id)===String(id));
+  if(!m)return;
+  const nuevo=prompt('Editar detalle del movimiento:', m.detalle||'');
+  if(nuevo===null)return;
+  m.detalle=nuevo.trim();
+  saveCajaTransfer();
+  renderCajaTransfer();
+  showToast('✅ Detalle actualizado');
+}
+
+function limpiarFiltrosCajaTransfer(){
+  const f=document.getElementById('cajaTransferFiltroFecha');if(f)f.value='';
+  const i=document.getElementById('cajaTransferFiltroId');if(i)i.value='';
+  const s=document.getElementById('cajaTransferFiltro');if(s)s.value='all';
+  renderCajaTransfer();
+}
+
+function verOrigenMovCajaTransfer(id){
+  const m=cajaTransferMovimientos.find(x=>String(x.id)===String(id));
+  if(!m)return;
+  if(m.jornadaId){
+    if(typeof viewJornada==='function'){
+      viewJornada(m.jornadaId,false);
+    }else{
+      showToast('❌ No se pudo abrir la jornada');
+    }
+  }
+}
+
+function buildCajaTransferRows(){
+  const filtro=document.getElementById('cajaTransferFiltro')?.value||'all';
+  const filtroFecha=document.getElementById('cajaTransferFiltroFecha')?.value||'';
+  const filtroId=(document.getElementById('cajaTransferFiltroId')?.value||'').trim();
+  const sorted=[...cajaTransferMovimientos].sort((a,b)=>(b.numId||0)-(a.numId||0));
+  let filtered=filtro==='all'?sorted:
+    filtro==='entrada'?sorted.filter(m=>(m.entrada||0)>0):
+    sorted.filter(m=>(m.salida||0)>0);
+  if(filtroFecha) filtered=filtered.filter(m=>m.fecha===filtroFecha);
+  if(filtroId) filtered=filtered.filter(m=>String(m.numId||'').includes(filtroId));
+  if(!filtered.length)return '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--muted);font-size:.8rem">Sin movimientos para este filtro.</td></tr>';
+  return filtered.map(function(m){
+    const isEntrada=(m.entrada||0)>0;
+    const rowBg=isEntrada?'background:rgba(67,185,127,.03)':'';
+    const saldoMostrar=m.saldoAcum||0;
+    const saldoColor=saldoMostrar>=0?'var(--green)':'var(--accent)';
+    const tipoLabel=isEntrada?'📥 '+(m.subtipo||'Ingreso'):'📤 '+((CAJA_TRANSFER_SALIDAS.find(function(s){return s.key===m.subtipo;})||{}).label||m.subtipo||'Salida');
+    const tipoBg=isEntrada?'rgba(67,185,127,.15)':'rgba(230,57,70,.12)';
+    const tipoColor=isEntrada?'var(--green)':'var(--accent)';
+    const tieneOrigen=!!m.jornadaId;
+    const tipoSpanAttrs=tieneOrigen
+      ?'onclick="verOrigenMovCajaTransfer(\''+m.id+'\')" title="Ver origen" style="cursor:pointer;text-decoration:underline dotted;background:'+tipoBg+';color:'+tipoColor+';border-radius:5px;padding:.12rem .42rem;font-size:.67rem;font-weight:700;white-space:nowrap"'
+      :'style="background:'+tipoBg+';color:'+tipoColor+';border-radius:5px;padding:.12rem .42rem;font-size:.67rem;font-weight:700;white-space:nowrap"';
+    const entrada=(m.entrada||0)>0?fmtM(m.entrada):'';
+    const salida=(m.salida||0)>0?fmtM(m.salida):'';
+    // Aviso si la jornada de origen se editó o anuló después de generarse este movimiento
+    let avisoJornada='';
+    if(m.jornadaId){
+      const j=ventasHistory.find(x=>x.id===m.jornadaId);
+      if(j){
+        const editsActuales=(j.editLog||[]).length;
+        if(j.anulada){
+          avisoJornada=' <span title="La jornada de origen fue anulada" style="color:var(--accent)">⚠️ anulada</span>';
+        }else if(editsActuales>(m.editLogCountOrigen||0)){
+          avisoJornada=' <span title="La jornada de origen fue editada después de generar este movimiento — revisar" style="color:var(--yellow)">⚠️ jornada editada</span>';
+        }
+      }
+    }
+    const detalle=(m.detalle||'—')+(m.jornadaId?' <span style="font-size:.63rem;color:var(--blue)">(jornada '+(m.fechaJornada||'')+')</span>':'')+avisoJornada;
+    return '<tr style="'+rowBg+';border-bottom:1px solid var(--border)">'+
+      '<td style="padding:.38rem .55rem;text-align:center;font-size:.65rem;color:var(--muted);font-family:monospace">#'+(m.numId||'—')+'</td>'+
+      '<td style="padding:.38rem .75rem;font-size:.74rem;white-space:nowrap"><div style="font-weight:600">'+(m.fecha||'—')+'</div><div style="color:var(--muted);font-size:.67rem">'+(m.hora||'')+'</div></td>'+
+      '<td style="padding:.38rem .75rem"><span '+tipoSpanAttrs+'>'+tipoLabel+'</span></td>'+
+      '<td style="padding:.38rem .75rem;text-align:right;font-weight:700;color:var(--green);font-size:.82rem">'+entrada+'</td>'+
+      '<td style="padding:.38rem .75rem;text-align:right;font-weight:700;color:var(--accent);font-size:.82rem">'+salida+'</td>'+
+      '<td style="padding:.38rem .75rem;text-align:right;font-family:Bebas Neue,sans-serif;font-size:1rem;color:'+saldoColor+'">'+fmtM(saldoMostrar)+'</td>'+
+      '<td style="padding:.38rem .75rem;font-size:.76rem;color:var(--muted);max-width:220px">'+detalle+' <button onclick="editarDetalleMovCajaTransfer(\''+m.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;opacity:.55;padding:0 .15rem;vertical-align:middle" title="Editar detalle">✏️</button></td>'+
+      '<td style="padding:.38rem .75rem"><button class="del-btn" style="font-size:.62rem;padding:.15rem .35rem" onclick="eliminarMovCajaTransfer(this.dataset.id)" data-id="'+m.id+'">✕</button></td>'+
+      '</tr>';
+  }).join('');
+}
+
+function renderCajaTransfer(){
+  if(!isAdminMode){
+    const _ct=document.getElementById('cajaTransferContent');if(_ct)_ct.innerHTML='<div class="info-box" style="text-align:center;padding:2rem">🔒 Solo administrador.</div>';
+    return;
+  }
+  if(!_cajaTransferListo){
+    const _ct=document.getElementById('cajaTransferContent');if(_ct)_ct.innerHTML='<div class="info-box" style="text-align:center;padding:2rem">⏳ Sincronizando Caja Transferencias con el servidor...</div>';
+    const _sT=document.getElementById('cajaTransferSaldoTxt');if(_sT)_sT.textContent='...';
+    return;
+  }
+  recalcCajaTransferSaldos();
+  const saldoActual=getCajaTransferSaldo();
+
+  const saldoColor=saldoActual>=0?'var(--green)':'var(--accent)';
+  const saldoTxt=document.getElementById('cajaTransferSaldoTxt');
+  if(saldoTxt){saldoTxt.textContent=fmtM(saldoActual);saldoTxt.style.color=saldoColor;}
+  const movCountTxt=document.getElementById('cajaTransferMovCountTxt');
+  if(movCountTxt)movCountTxt.textContent=`${cajaTransferMovimientos.length} movimiento${cajaTransferMovimientos.length!==1?'s':''}`;
+  const defSaldoBtn=document.getElementById('cajaTransferDefSaldoBtn');
+  if(defSaldoBtn)defSaldoBtn.style.display=cajaTransferSaldoInicial===0?'':'none';
+
+  // Jornadas con transferencias que todavía no generaron su movimiento (por ejemplo, si la sincronización no había terminado al cerrar la jornada)
+  const jornadasConMov=new Set(cajaTransferMovimientos.filter(m=>m.jornadaId).map(m=>m.jornadaId));
+  const pendientes=ventasHistory.filter(j=>!j.anulada&&(j.totalTransf||0)>0&&!jornadasConMov.has(j.id));
+
+  const pendientesHtml=pendientes.length?`
+    <div style="background:rgba(244,196,48,.08);border:1px solid rgba(244,196,48,.25);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem">
+      <div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.09em;color:var(--yellow);font-weight:700;margin-bottom:.5rem">⏳ JORNADAS SIN MOVIMIENTO GENERADO (${pendientes.length})</div>
+      ${pendientes.map(j=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid rgba(244,196,48,.15);flex-wrap:wrap;gap:.4rem">
+          <div>
+            <span style="font-size:.82rem;font-weight:600">📅 ${j.fecha}</span>
+            <span style="font-size:.72rem;color:var(--muted);margin-left:.5rem">${j.vendedor||'—'} · ${j.tickets||0} tickets · ${fmtM(j.totalTransf||0)} transferencia</span>
+          </div>
+          <button class="btn btn-green" style="font-size:.72rem;padding:.28rem .75rem" onclick="generarMovCajaTransferDeJornada('${j.id}')">✅ Generar movimiento</button>
+        </div>`).join('')}
+    </div>`:'';
+
+  const _hoy=todayStr();
+  const _mesActual=_hoy.slice(0,7);
+  const _deHoy=cajaTransferMovimientos.filter(m=>m.fecha===_hoy);
+  const _delMes=cajaTransferMovimientos.filter(m=>(m.fecha||'').startsWith(_mesActual));
+  const _sumCampo=(arr,campo)=>arr.reduce((s,m)=>s+(m[campo]||0),0);
+  const resumenHtml=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.5rem;margin-bottom:1rem">
+      <div class="caja-card"><div class="caja-lbl">Hoy · Ingresos</div><div class="caja-val" style="color:var(--green)">+${fmtM(_sumCampo(_deHoy,'entrada'))}</div></div>
+      <div class="caja-card"><div class="caja-lbl">Hoy · Salidas</div><div class="caja-val" style="color:var(--accent)">−${fmtM(_sumCampo(_deHoy,'salida'))}</div></div>
+      <div class="caja-card"><div class="caja-lbl">Este mes · Ingresos</div><div class="caja-val" style="color:var(--green)">+${fmtM(_sumCampo(_delMes,'entrada'))}</div></div>
+      <div class="caja-card"><div class="caja-lbl">Este mes · Salidas</div><div class="caja-val" style="color:var(--accent)">−${fmtM(_sumCampo(_delMes,'salida'))}</div></div>
+    </div>`;
+
+  const _filtroFechaVal=document.getElementById('cajaTransferFiltroFecha')?.value||'';
+  const _filtroIdVal=document.getElementById('cajaTransferFiltroId')?.value||'';
+  const _filtroTipoVal=document.getElementById('cajaTransferFiltro')?.value||'all';
+
+  document.getElementById('cajaTransferContent').innerHTML=`
+    ${pendientesHtml}
+    ${resumenHtml}
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.4rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.04em">Movimientos</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+          <input type="date" id="cajaTransferFiltroFecha" value="${_filtroFechaVal}" onchange="renderCajaTransfer()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
+          <input type="text" id="cajaTransferFiltroId" placeholder="Buscar ID..." value="${_filtroIdVal}" oninput="renderCajaTransfer()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif;width:100px">
+          <select id="cajaTransferFiltro" onchange="renderCajaTransfer()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .5rem;font-size:.75rem;font-family:'DM Sans',sans-serif">
+            <option value="all" ${_filtroTipoVal==='all'?'selected':''}>Todos</option>
+            <option value="entrada" ${_filtroTipoVal==='entrada'?'selected':''}>Solo entradas</option>
+            <option value="salida" ${_filtroTipoVal==='salida'?'selected':''}>Solo salidas</option>
+          </select>
+          <button onclick="limpiarFiltrosCajaTransfer()" class="btn" style="font-size:.7rem;padding:.28rem .6rem;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif">✕ Limpiar</button>
+        </div>
+      </div>
+      ${cajaTransferMovimientos.length?`
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:620px">
+          <thead>
+            <tr style="background:var(--surface2)">
+              <th style="padding:.42rem .55rem;text-align:center;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border)">ID</th>
+              <th style="padding:.42rem .75rem;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border)">Fecha / Hora</th>
+              <th style="padding:.42rem .75rem;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border)">Tipo</th>
+              <th style="padding:.42rem .75rem;text-align:right;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--green);border-bottom:1px solid var(--border)">Entrada</th>
+              <th style="padding:.42rem .75rem;text-align:right;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);border-bottom:1px solid var(--border)">Salida</th>
+              <th style="padding:.42rem .75rem;text-align:right;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--yellow);border-bottom:1px solid var(--border)">Saldo</th>
+              <th style="padding:.42rem .75rem;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border)">Detalle</th>
+              <th style="padding:.42rem .75rem;border-bottom:1px solid var(--border)"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buildCajaTransferRows()}
+          </tbody>
+        </table>
+      </div>`:`<div style="text-align:center;padding:3rem;color:var(--muted);font-size:.85rem">Sin movimientos aún. Se cargan solos al cerrar una jornada con ventas por transferencia.</div>`}
+    </div>
+  `;
+}
+
 function setSaldoInicial(){
   const val=prompt('Ingresá el saldo inicial de la caja (en $):', '0');
   if(val===null)return;
@@ -12919,6 +13324,42 @@ function renderAll(){renderDashboard();renderGrid();renderTable();updateDashboar
     <div class="form-actions">
       <button class="btn btn-primary" onclick="confirmarCajaIvoSalida()">💾 Confirmar salida</button>
       <button class="btn btn-secondary" onclick="closeCajaIvoSalida()">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="cajaTransferSalidaModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title">➖ REGISTRAR SALIDA — TRANSFERENCIAS</div>
+      <button class="modal-close" onclick="closeCajaTransferSalida()">✕</button>
+    </div>
+    <div class="fg">
+      <div class="fgroup full">
+        <label>Tipo de salida *</label>
+        <select id="cts_tipo" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.42rem .65rem;font-size:.82rem;font-family:'DM Sans',sans-serif;width:100%">
+          <option value="retiro">🏦 Retiro / transferencia a otra cuenta</option>
+          <option value="comision">💳 Comisión de transferencias</option>
+          <option value="ajuste">⚖️ Ajuste manual</option>
+          <option value="otros">📝 Otros</option>
+        </select>
+      </div>
+      <div class="fgroup full">
+        <label>Detalle / Descripción *</label>
+        <input type="text" id="cts_detalle" placeholder="Ej: Transferencia a cuenta de ahorro...">
+      </div>
+      <div class="fgroup">
+        <label>Importe ($) *</label>
+        <input type="number" id="cts_importe" min="0" placeholder="0">
+      </div>
+      <div class="fgroup">
+        <label>Fecha</label>
+        <input type="date" id="cts_fecha">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarCajaTransferSalida()">💾 Confirmar salida</button>
+      <button class="btn btn-secondary" onclick="closeCajaTransferSalida()">✕ Cancelar</button>
     </div>
   </div>
 </div>
