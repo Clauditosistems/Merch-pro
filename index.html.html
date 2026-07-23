@@ -6806,7 +6806,11 @@ async function loadFromSupabase(){
     if(adjData&&adjData.length>0) window.stockAdjustments=adjData;
 
     // Load caja ivo from Supabase
-    try{const civData=await sbFetch('caja_ivo?select=*&limit=1');if(civData&&civData[0]){cajaIvoMovimientos=civData[0].movimientos||[];cajaIvoSaldoInicial=civData[0].saldo_inicial||0;}}catch(e){console.warn('⚠️ CajaIvo load:',e.message);}
+    try{
+      const civData=await sbFetch('caja_ivo?select=*&limit=1');
+      if(civData&&civData[0]){cajaIvoMovimientos=civData[0].movimientos||[];cajaIvoSaldoInicial=civData[0].saldo_inicial||0;}
+      _cajaIvoListo=true; // solo se marca listo si la consulta a Supabase realmente respondió
+    }catch(e){console.warn('⚠️ CajaIvo load:',e.message);}
     if(typeof _migrarCajaIvoNumIds==='function')_migrarCajaIvoNumIds();
     // Load costos fijos from Supabase
     let _costosFijosCargadosOK=false;
@@ -10646,13 +10650,17 @@ function confirmarPagoProveedor(){
   p.saldo=Math.max(0,(p.saldo||0)-importe);
   saveProveedores();
   if(confirm(`¿Descontar ${fmtM(importe)} de Caja Ivo también?\nMedio: ${medio}`)){
-    const saldoActual=getCajaIvoSaldo();
-    const continuar=importe<=saldoActual||confirm(`⚠️ El importe (${fmtM(importe)}) supera el saldo actual de Caja Ivo (${fmtM(saldoActual)}).\n¿Continuar de todas formas?`);
-    if(continuar){
-      if(!cajaIvoMovimientos)cajaIvoMovimientos=[];
-      cajaIvoMovimientos.push({id:'civ'+Date.now(),numId:_nextCajaIvoNumId(),fecha,hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),tipo:'salida',subtipo:'proveedor',entrada:0,salida:importe,detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,medio});
-      saveCajaIvo();
-      if(typeof renderCajaPage==='function')renderCajaPage();
+    if(!_cajaIvoPuedeGuardar()){
+      // El pago al proveedor ya se registró arriba; solo se omite el descuento en Caja Ivo
+    }else{
+      const saldoActual=getCajaIvoSaldo();
+      const continuar=importe<=saldoActual||confirm(`⚠️ El importe (${fmtM(importe)}) supera el saldo actual de Caja Ivo (${fmtM(saldoActual)}).\n¿Continuar de todas formas?`);
+      if(continuar){
+        if(!cajaIvoMovimientos)cajaIvoMovimientos=[];
+        cajaIvoMovimientos.push({id:'civ'+Date.now(),numId:_nextCajaIvoNumId(),fecha,hora:new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),tipo:'salida',subtipo:'proveedor',entrada:0,salida:importe,detalle:`Pago proveedor: ${p.nombre} — ${nota||medio}`,medio});
+        saveCajaIvo();
+        if(typeof renderCajaPage==='function')renderCajaPage();
+      }
     }
   }
   closePagoProveedor();openDetalleProveedor(currentProveedorId);
@@ -10855,6 +10863,15 @@ function processScan(code){
 // ══════════════════════════════════════════════════════════════════
 let cajaIvoMovimientos=[];  // [{id, numId, fecha, hora, tipo, subtipo, detalle, entrada, salida, saldo, confirmadoDeJornada}]
 let cajaIvoSaldoInicial=0;
+let _cajaIvoListo=false; // true recién cuando terminó de cargar desde Supabase — evita guardar datos locales viejos/incompletos encima de los reales
+
+function _cajaIvoPuedeGuardar(){
+  if(!_cajaIvoListo){
+    showToast('⏳ Todavía se está sincronizando Caja Ivo con el servidor. Esperá unos segundos y volvé a intentar.');
+    return false;
+  }
+  return true;
+}
 
 function _nextCajaIvoNumId(){
   return (cajaIvoMovimientos.reduce((max,m)=>Math.max(max,m.numId||0),0))+1;
@@ -10972,6 +10989,11 @@ function renderCajaIvo(){
     const _ci=document.getElementById('cajaIvoContent');if(_ci)_ci.innerHTML='<div class="info-box" style="text-align:center;padding:2rem">🔒 Solo administrador.</div>';
     return;
   }
+  if(!_cajaIvoListo){
+    const _ci=document.getElementById('cajaIvoContent');if(_ci)_ci.innerHTML='<div class="info-box" style="text-align:center;padding:2rem">⏳ Sincronizando Caja Ivo con el servidor...</div>';
+    const _sT=document.getElementById('cajaIvoSaldoTxt');if(_sT)_sT.textContent='...';
+    return;
+  }
   recalcCajaIvoSaldos();
   const saldoActual=getCajaIvoSaldo();
 
@@ -11085,6 +11107,7 @@ function renderCajaIvo(){
 }
 
 function confirmarJornadaCajaIvo(jornadaId){
+  if(!_cajaIvoPuedeGuardar())return;
   const j=ventasHistory.find(x=>x.id===jornadaId);if(!j)return;
   const efec=j.totalEfec||0;
   if(!confirm(`Confirmar ingreso de jornada ${j.fecha}
@@ -11122,6 +11145,7 @@ function closeCajaIvoSalida(){
   document.body.style.overflow='';
 }
 function confirmarCajaIvoSalida(){
+  if(!_cajaIvoPuedeGuardar())return;
   const importe=parseFloat(document.getElementById('cis_importe')?.value)||0;
   if(importe<=0){showToast('❌ Ingresá un importe válido');return;}
   const tipo=document.getElementById('cis_tipo')?.value||'otros';
@@ -11171,6 +11195,7 @@ function calcArqueo(){
   }
 }
 function confirmarArqueoCajaIvo(){
+  if(!_cajaIvoPuedeGuardar())return;
   const sistema=getCajaIvoSaldo();
   const contado=parseFloat(document.getElementById('arq_contado')?.value)||0;
   if(isNaN(contado)||document.getElementById('arq_contado')?.value===''){showToast('❌ Ingresá el monto contado');return;}
@@ -11869,6 +11894,7 @@ function confirmarMedioPago(){
     showToast('❌ La suma de efectivo + transferencia debe ser igual al total');return;
   }
   if(montoEfectivo>0){
+    if(!_cajaIvoPuedeGuardar())return;
     const saldoCaja=getCajaIvoSaldo();
     if(saldoCaja<montoEfectivo&&!confirm(`⚠️ Saldo Caja Ivo: ${fmtM(saldoCaja)}\nA descontar en efectivo: ${fmtM(montoEfectivo)}\nSaldo insuficiente. ¿Registrar igual?`))return;
   }
