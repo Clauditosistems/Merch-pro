@@ -3873,6 +3873,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div id="cfg-excel-log" style="margin-top:.6rem;font-size:.82rem;max-height:200px;overflow-y:auto"></div>
       </div>
 
+      <!-- Métricas del celular -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
+        <h3 style="margin-bottom:.4rem;font-size:1rem">📊 Métricas del celular</h3>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.8rem">Elegí qué datos ver en la versión móvil de métricas (menú aparte, de solo lectura). Se guarda para todos los que usen ese enlace.</div>
+        <div id="cfg-metricas-movil-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.4rem .8rem;margin-bottom:.9rem"></div>
+        <button class="nbtn green" onclick="guardarMetricasMovil()">Guardar selección</button>
+      </div>
+
       <!-- Usuarios -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem">
         <h3 style="margin-bottom:.8rem;font-size:1rem">👥 Usuarios del sistema</h3>
@@ -6852,7 +6860,7 @@ async function loadFromSupabase(){
     try{const cfData=await sbFetch('costos_fijos?select=*&limit=1');if(cfData&&cfData[0]){costosFijos=cfData[0].items||[];}_costosFijosCargadosOK=true;}catch(e){console.warn('⚠️ CostosFijos load (se mantiene caché local, NO se sobreescribe Supabase):',e.message);}
     // Load configuracion from Supabase
     try{const cfgData=await sbFetch('configuracion?select=*&limit=1');if(cfgData&&cfgData[0]){
-      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;if(cfgData[0].costo_transferencia_pct!=null)costoTransferenciaPct=cfgData[0].costo_transferencia_pct;}}catch(e){console.warn('⚠️ Configuracion load:',e.message);}
+      if(cfgData[0].categorias&&cfgData[0].categorias.length) categorias=cfgData[0].categorias;if(cfgData[0].objetivo)objetivoDiario=cfgData[0].objetivo;if(cfgData[0].obligaciones)obligacionesMes=cfgData[0].obligaciones;if(cfgData[0].sueldos_pagados)sueldosPagados=cfgData[0].sueldos_pagados;if(cfgData[0].costo_transferencia_pct!=null)costoTransferenciaPct=cfgData[0].costo_transferencia_pct;if(cfgData[0].metricas_movil&&cfgData[0].metricas_movil.length)metricasMovilSeleccion=cfgData[0].metricas_movil;}}catch(e){console.warn('⚠️ Configuracion load:',e.message);}
     // Load empleados from Supabase (migra Morena/Abel automáticamente la primera vez)
     try{
       const empData=await sbFetch('empleados?select=*');
@@ -12937,6 +12945,36 @@ function exportarCierreMensualPDF(year,month){
 let objetivoDiario=1000000;
 let costoTransferenciaPct=parseFloat(localStorage.getItem('mv6_costo_transferencia_pct'))||4;
 
+// ══ MÉTRICAS MÓVIL (personalizables desde Configuración) ═══════════
+const METRICAS_MOVIL_CATALOG=[
+  {key:'ventas',            label:'💰 Ventas totales',              periodo:true},
+  {key:'efectivo',          label:'💵 Efectivo',                    periodo:true},
+  {key:'transferencia',     label:'💳 Transferencia',                periodo:true},
+  {key:'ganancia',          label:'📈 Ganancia real',                periodo:true},
+  {key:'margen',            label:'Margen de ganancia (%)',          periodo:true},
+  {key:'tickets',           label:'🎫 Tickets',                      periodo:true},
+  {key:'prendas',           label:'👕 Prendas vendidas',             periodo:true},
+  {key:'clientes',          label:'🧍 Clientes',                     periodo:true},
+  {key:'comisiones',        label:'🧑\u200d💼 Comisiones',                periodo:true},
+  {key:'costoTransf',       label:'💳 Costo de transferencias',      periodo:true},
+  {key:'cmv',               label:'📦 CMV (costo de merca vendida)', periodo:true},
+  {key:'descuentos',        label:'🏷️ Descuentos otorgados',         periodo:true},
+  {key:'gastos',            label:'💸 Gastos',                       periodo:true},
+  {key:'conversion',        label:'🎯 Conversión (%)',               periodo:true},
+  {key:'margenPromedio',    label:'Margen promedio por ítem (%)',    periodo:true},
+  {key:'saldoCajaIvo',      label:'🪙 Saldo Caja Ivo',               periodo:false},
+  {key:'saldoCajaTransfer', label:'💳 Saldo Caja Transferencias',    periodo:false},
+];
+const METRICAS_MOVIL_DEFAULT=['ventas','efectivo','transferencia','ganancia','tickets','prendas'];
+let metricasMovilSeleccion=[...METRICAS_MOVIL_DEFAULT];
+
+function guardarMetricasMovil(){
+  const sel=METRICAS_MOVIL_CATALOG.filter(m=>document.getElementById('cfgmet-'+m.key)?.checked).map(m=>m.key);
+  metricasMovilSeleccion=sel.length?sel:[...METRICAS_MOVIL_DEFAULT];
+  _sbFetch('POST','configuracion?on_conflict=id',[{id:'default',metricas_movil:metricasMovilSeleccion,updated_at:new Date().toISOString()}]).catch(e=>console.warn('MetricasMovil sync:',e.message));
+  showToast('✅ Métricas del celular actualizadas');
+}
+
 function guardarConfigCostoTransferencia(){
   const pct=parseFloat(document.getElementById('cfg-costo-transf-pct')?.value);
   if(isNaN(pct)||pct<0){showToast('❌ Ingresá un % válido');return;}
@@ -14325,6 +14363,14 @@ function initConfigPage(){
   if(pct) pct.value=parseFloat(localStorage.getItem('mv6_comision_pct'))||6;
   const pctTransf=document.getElementById('cfg-costo-transf-pct');
   if(pctTransf) pctTransf.value=costoTransferenciaPct;
+  const metList=document.getElementById('cfg-metricas-movil-list');
+  if(metList){
+    metList.innerHTML=METRICAS_MOVIL_CATALOG.map(m=>`
+      <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer">
+        <input type="checkbox" id="cfgmet-${m.key}" ${metricasMovilSeleccion.includes(m.key)?'checked':''} style="width:16px;height:16px;cursor:pointer">
+        ${m.label}
+      </label>`).join('');
+  }
   renderEmpleados();
 }
 

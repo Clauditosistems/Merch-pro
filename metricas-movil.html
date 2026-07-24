@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>📊 Métricas — Merch Pro</title>
+<link rel="icon" href="data:,">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+  :root{
+    --bg:#F7F5F2; --card:#FFFFFF; --surface2:#EDE9E3; --border:#D5CBBF; --text:#2A2420;
+    --muted:#8C7B6B; --accent:#C4955A; --accent2:#E8B97A; --green:#5A8A5A; --red:#D4793A; --blue:#5A7A9A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent}
+  .screen{display:none;min-height:100vh;flex-direction:column}
+  .screen.active{display:flex}
+  header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;z-index:10}
+  header h1{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;letter-spacing:.04em;margin:0}
+  header button{background:none;border:none;color:var(--muted);font-size:.85rem;padding:.4rem;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer}
+  main{flex:1;padding:1rem;overflow-y:auto}
+  input, .btn{width:100%;padding:.85rem 1rem;border-radius:10px;border:1px solid var(--border);font-size:1rem;background:var(--card);color:var(--text);font-family:'DM Sans',sans-serif}
+  input::placeholder{color:var(--muted)}
+  input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .btn{cursor:pointer;font-weight:600;text-align:center;border:none;transition:opacity .15s}
+  .btn:active{opacity:.75}
+  .btn-primary{background:var(--accent);color:#fff}
+  .stack{display:flex;flex-direction:column;gap:.6rem}
+  .err{color:var(--red);font-size:.85rem;min-height:1.1rem;margin-top:.4rem}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;color:var(--muted);margin:1.1rem 0 .55rem}
+  .section-title:first-child{margin-top:0}
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.55rem}
+  .metric-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.85rem .95rem}
+  .metric-lbl{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.3rem}
+  .metric-val{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.03em}
+  .updated-txt{font-size:.7rem;color:var(--muted);text-align:center;margin-top:1.2rem}
+  .empty-msg{text-align:center;color:var(--muted);padding:2.5rem 1rem;font-size:.9rem}
+  .refresh-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.4rem .7rem;font-size:.78rem;font-weight:600;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif}
+  .spinner{width:16px;height:16px;border:3px solid rgba(196,149,90,.3);border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:spin .7s linear infinite;vertical-align:middle;margin-right:.4rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="screen active" id="loginScreen">
+  <main style="justify-content:center;display:flex;flex-direction:column">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:2.2rem">📊</div>
+      <h1 style="margin:.4rem 0 0">Métricas</h1>
+      <div style="color:var(--muted);font-size:.85rem">Merch Pro</div>
+    </div>
+    <div class="stack">
+      <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn btn-primary" id="loginBtn" onclick="loginUser()">Ingresar</button>
+      <div class="err" id="loginErr"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ MÉTRICAS ═══ -->
+<div class="screen" id="metricasScreen">
+  <header>
+    <h1>📊 Métricas</h1>
+    <button onclick="logout()">Salir</button>
+  </header>
+  <main id="metricasMain">
+    <div class="empty-msg"><span class="spinner"></span>Cargando métricas...</div>
+  </main>
+</div>
+
+<script>
+const SUPA_URL='https://kxtidabdmrlbxzhhvxdz.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4dGlkYWJkbXJsYnh6aGh2eGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNzQ1NjEsImV4cCI6MjA5MzY1MDU2MX0.a5lgsryo4gol9lTD4bAHbYI9a9GiTLKCNn5YUS87Ncg';
+
+let accessToken=null, currentUser=null;
+
+// ── Catálogo de métricas (debe reflejar lo que arma Configuración → Métricas del celular) ──
+const CATALOG={
+  ventas:         {label:'💰 Ventas totales',              field:'total_ventas',        type:'money',   agg:'sum', periodo:true},
+  efectivo:       {label:'💵 Efectivo',                    field:'tot_efec',            type:'money',   agg:'sum', periodo:true},
+  transferencia:  {label:'💳 Transferencia',                field:'tot_transf',          type:'money',   agg:'sum', periodo:true},
+  ganancia:       {label:'📈 Ganancia real',                field:'ganancia_real',       type:'money',   agg:'sum', periodo:true},
+  margen:         {label:'Margen de ganancia',              field:'margen_ganancia',     type:'percent', agg:'avg', periodo:true},
+  tickets:        {label:'🎫 Tickets',                      field:'tickets',             type:'count',   agg:'sum', periodo:true},
+  prendas:        {label:'👕 Prendas vendidas',             field:'prendas',             type:'count',   agg:'sum', periodo:true},
+  clientes:       {label:'🧍 Clientes',                     field:'clientes_hoy',        type:'count',   agg:'sum', periodo:true},
+  comisiones:     {label:'🧑\u200d💼 Comisiones',                field:'comisiones',          type:'money',   agg:'sum', periodo:true},
+  costoTransf:    {label:'💳 Costo de transferencias',      field:'costo_transferencias',type:'money',   agg:'sum', periodo:true},
+  cmv:            {label:'📦 CMV',                          field:'cmv',                 type:'money',   agg:'sum', periodo:true},
+  descuentos:     {label:'🏷️ Descuentos otorgados',         field:'total_desc',          type:'money',   agg:'sum', periodo:true},
+  gastos:         {label:'💸 Gastos',                       field:'total_gastos',        type:'money',   agg:'sum', periodo:true},
+  conversion:     {label:'🎯 Conversión',                   field:'conversion',          type:'percent', agg:'avg', periodo:true},
+  margenPromedio: {label:'Margen promedio por ítem',        field:'margen_promedio',     type:'percent', agg:'avg', periodo:true},
+  saldoCajaIvo:      {label:'🪙 Saldo Caja Ivo',            periodo:false},
+  saldoCajaTransfer: {label:'💳 Saldo Caja Transferencias', periodo:false},
+};
+const DEFAULT_SELECCION=['ventas','efectivo','transferencia','ganancia','tickets','prendas'];
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:1.2rem;left:1rem;right:1rem;background:var(--accent);color:#fff;padding:.8rem 1rem;border-radius:10px;font-weight:600;text-align:center;font-size:.9rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.25)';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2200);
+}
+function fmtM(n){
+  n=Math.round(n||0);
+  return '$'+n.toLocaleString('es-AR');
+}
+
+// ── LOGIN ──────────────────────────────────────────────
+async function loginUser(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPassword').value;
+  const btn=document.getElementById('loginBtn');
+  const err=document.getElementById('loginErr');
+  err.textContent='';
+  if(!email||!pass){err.textContent='Completá email y contraseña';return;}
+  btn.textContent='Ingresando...';btn.disabled=true;
+  try{
+    const res=await fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass})
+    });
+    const data=await res.json();
+    if(!res.ok||!data.access_token){
+      err.textContent=data.error_description||data.msg||'Email o contraseña incorrectos';
+      btn.textContent='Ingresar';btn.disabled=false;
+      return;
+    }
+    accessToken=data.access_token;
+    currentUser=data.user;
+    try{localStorage.setItem('mm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));}catch(e){}
+    btn.textContent='Ingresar';btn.disabled=false;
+    showScreen('metricasScreen');
+    cargarMetricas();
+  }catch(e){
+    err.textContent='Error de conexión: '+e.message;
+    btn.textContent='Ingresar';btn.disabled=false;
+  }
+}
+
+function logout(){
+  accessToken=null;currentUser=null;
+  try{localStorage.removeItem('mm_session');}catch(e){}
+  showScreen('loginScreen');
+}
+
+async function intentarSesionGuardada(){
+  try{
+    const raw=localStorage.getItem('mm_session');
+    if(!raw)return;
+    const s=JSON.parse(raw);
+    if(!s.access_token)return;
+    accessToken=s.access_token;currentUser=s.user;
+    await refrescarSesion();
+    showScreen('metricasScreen');
+    cargarMetricas();
+  }catch(e){}
+}
+
+// ── RED / SESIÓN ───────────────────────────────────────
+async function refrescarSesion(){
+  try{
+    const raw=localStorage.getItem('mm_session');
+    if(!raw)return false;
+    const s=JSON.parse(raw);
+    if(!s.refresh_token)return false;
+    const res=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:s.refresh_token})
+    });
+    const data=await res.json();
+    if(!res.ok||!data.access_token)return false;
+    accessToken=data.access_token;
+    localStorage.setItem('mm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user||s.user}));
+    return true;
+  }catch(e){return false;}
+}
+function sesionVencida(){
+  showToast('⚠️ Tu sesión venció. Iniciá sesión de nuevo.');
+  logout();
+}
+async function sbGet(path,_retried){
+  const res=await fetch(SUPA_URL+'/rest/v1/'+path,{
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+accessToken}
+  });
+  if(res.status===401&&!_retried){
+    if(await refrescarSesion())return sbGet(path,true);
+    sesionVencida();
+    throw new Error('Sesión vencida');
+  }
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+// ── DATOS ──────────────────────────────────────────────
+function primerDiaMes(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';
+}
+function hoyStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+async function cargarMetricas(){
+  const main=document.getElementById('metricasMain');
+  main.innerHTML='<div class="empty-msg"><span class="spinner"></span>Cargando métricas...</div>';
+  try{
+    // 1) Selección de métricas configurada (con fallback a la selección por defecto)
+    let seleccion=DEFAULT_SELECCION;
+    try{
+      const cfg=await sbGet('configuracion?select=metricas_movil&id=eq.default&limit=1');
+      if(cfg&&cfg[0]&&cfg[0].metricas_movil&&cfg[0].metricas_movil.length)seleccion=cfg[0].metricas_movil;
+    }catch(e){console.warn('No se pudo cargar la selección de métricas, se usa la por defecto:',e.message);}
+
+    // 2) Datos de ventas del mes (de ahí se separa "hoy")
+    const desdeStr=primerDiaMes();
+    const filasMes=await sbGet('caja?select=*&fecha=gte.'+desdeStr+'&order=fecha.desc');
+    const hoy=hoyStr();
+    const filasHoy=(filasMes||[]).filter(f=>f.fecha===hoy);
+
+    // 3) Saldos de caja (solo si están seleccionados, para no pedir de más)
+    let saldoCajaIvo=null, saldoCajaTransfer=null;
+    if(seleccion.includes('saldoCajaIvo')){
+      try{
+        const civ=await sbGet('caja_ivo?select=movimientos,saldo_inicial&limit=1');
+        if(civ&&civ[0]){
+          let s=civ[0].saldo_inicial||0;
+          (civ[0].movimientos||[]).forEach(m=>{s+=(m.entrada||0)-(m.salida||0);});
+          saldoCajaIvo=s;
+        }else saldoCajaIvo=0;
+      }catch(e){console.warn('CajaIvo:',e.message);}
+    }
+    if(seleccion.includes('saldoCajaTransfer')){
+      try{
+        const ctf=await sbGet('caja_transfer?select=movimientos,saldo_inicial&limit=1');
+        if(ctf&&ctf[0]){
+          let s=ctf[0].saldo_inicial||0;
+          (ctf[0].movimientos||[]).forEach(m=>{s+=(m.entrada||0)-(m.salida||0);});
+          saldoCajaTransfer=s;
+        }else saldoCajaTransfer=0;
+      }catch(e){console.warn('CajaTransfer:',e.message);}
+    }
+
+    renderMetricas(seleccion, filasHoy, filasMes, saldoCajaIvo, saldoCajaTransfer);
+  }catch(e){
+    main.innerHTML='<div class="empty-msg">❌ Error cargando métricas: '+e.message+'</div>';
+  }
+}
+
+function calcularValor(m, filas){
+  if(m.agg==='sum'){
+    return filas.reduce((s,f)=>s+(f[m.field]||0),0);
+  }else{ // avg
+    if(!filas.length)return 0;
+    return Math.round(filas.reduce((s,f)=>s+(f[m.field]||0),0)/filas.length);
+  }
+}
+function formatearValor(m, val){
+  if(m.type==='money')return fmtM(val);
+  if(m.type==='percent')return Math.round(val)+'%';
+  return String(val);
+}
+
+function renderMetricas(seleccion, filasHoy, filasMes, saldoCajaIvo, saldoCajaTransfer){
+  const periodoKeys=seleccion.filter(k=>CATALOG[k]&&CATALOG[k].periodo);
+  const cajaKeys=seleccion.filter(k=>CATALOG[k]&&CATALOG[k].periodo===false);
+
+  const cardsHoy=periodoKeys.map(k=>{
+    const m=CATALOG[k];
+    const val=calcularValor(m,filasHoy);
+    return `<div class="metric-card"><div class="metric-lbl">${m.label}</div><div class="metric-val">${formatearValor(m,val)}</div></div>`;
+  }).join('');
+
+  const cardsMes=periodoKeys.map(k=>{
+    const m=CATALOG[k];
+    const val=calcularValor(m,filasMes);
+    return `<div class="metric-card"><div class="metric-lbl">${m.label}</div><div class="metric-val">${formatearValor(m,val)}</div></div>`;
+  }).join('');
+
+  const cardsCaja=cajaKeys.map(k=>{
+    const m=CATALOG[k];
+    const val=k==='saldoCajaIvo'?saldoCajaIvo:saldoCajaTransfer;
+    const color=val==null?'var(--muted)':(val>=0?'var(--green)':'var(--red)');
+    return `<div class="metric-card"><div class="metric-lbl">${m.label}</div><div class="metric-val" style="color:${color}">${val==null?'—':fmtM(val)}</div></div>`;
+  }).join('');
+
+  const main=document.getElementById('metricasMain');
+  if(!periodoKeys.length && !cajaKeys.length){
+    main.innerHTML='<div class="empty-msg">No hay métricas seleccionadas todavía.<br>Elegilas desde el sistema principal en Configuración → Métricas del celular.</div>';
+    return;
+  }
+
+  main.innerHTML=`
+    ${periodoKeys.length?`
+    <div class="section-title">📅 HOY</div>
+    <div class="metrics-grid">${cardsHoy}</div>
+    <div class="section-title">🗓️ ESTE MES</div>
+    <div class="metrics-grid">${cardsMes}</div>
+    `:''}
+    ${cajaKeys.length?`
+    <div class="section-title">🏦 CAJAS</div>
+    <div class="metrics-grid">${cardsCaja}</div>
+    `:''}
+    <div style="text-align:center;margin-top:1.3rem">
+      <button class="refresh-btn" onclick="cargarMetricas()">🔄 Actualizar</button>
+    </div>
+    <div class="updated-txt">Actualizado ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false})}</div>
+  `;
+}
+
+// ── INICIO ───────────────────────────────────────────────
+intentarSesionGuardada();
+</script>
+</body>
+</html>
