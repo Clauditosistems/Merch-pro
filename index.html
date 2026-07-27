@@ -26686,25 +26686,33 @@ function closeDetalleProveedor(){
   closeAjusteSaldoProveedor();
 }
 function openAjusteSaldoProveedor(){
-  document.getElementById('dprov_ajuste_form').style.display='block';
-  const d=document.getElementById('ajuste_prov_fecha');if(d)d.value=todayStr();
+  try{
+    const f=document.getElementById('dprov_ajuste_form');
+    if(!f){showToast('❌ Error: no se encontró el formulario de ajuste');return;}
+    f.style.display='block';
+    const d=document.getElementById('ajuste_prov_fecha');if(d)d.value=todayStr();
+    f.scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(e){showToast('❌ Error al abrir el ajuste: '+e.message);console.error(e);}
 }
 function closeAjusteSaldoProveedor(){
   const f=document.getElementById('dprov_ajuste_form');if(f)f.style.display='none';
 }
 function confirmarAjusteSaldoProveedor(){
-  const p=proveedores.find(x=>x.id===currentProveedorId);if(!p)return;
-  const importeRaw=document.getElementById('ajuste_prov_importe')?.value;
-  const importe=parseFloat(importeRaw);
-  if(!importeRaw||isNaN(importe)||importe===0){showToast('❌ Ingresá un importe válido (puede ser negativo)');return;}
-  const fecha=document.getElementById('ajuste_prov_fecha')?.value||todayStr();
-  const nota=document.getElementById('ajuste_prov_nota')?.value||'Ajuste manual de saldo';
-  if(!p.movimientos)p.movimientos=[];
-  p.movimientos.push({tipo:'ajuste',importe,fecha,detalle:nota});
-  p.saldo=Math.max(0,(p.saldo||0)+importe);
-  saveProveedores();
-  closeAjusteSaldoProveedor();openDetalleProveedor(currentProveedorId);
-  showToast('✅ Saldo ajustado — Nuevo saldo: '+fmtM(p.saldo));
+  try{
+    const p=proveedores.find(x=>x.id===currentProveedorId);
+    if(!p){showToast('❌ Error: no se encontró el proveedor');return;}
+    const importeRaw=document.getElementById('ajuste_prov_importe')?.value;
+    const importe=parseFloat(importeRaw);
+    if(!importeRaw||isNaN(importe)||importe===0){showToast('❌ Ingresá un importe válido (puede ser negativo)');return;}
+    const fecha=document.getElementById('ajuste_prov_fecha')?.value||todayStr();
+    const nota=document.getElementById('ajuste_prov_nota')?.value||'Ajuste manual de saldo';
+    if(!p.movimientos)p.movimientos=[];
+    p.movimientos.push({tipo:'ajuste',importe,fecha,detalle:nota});
+    p.saldo=Math.max(0,(p.saldo||0)+importe);
+    saveProveedores();
+    closeAjusteSaldoProveedor();openDetalleProveedor(currentProveedorId);
+    showToast('✅ Saldo ajustado — Nuevo saldo: '+fmtM(p.saldo));
+  }catch(e){showToast('❌ Error al ajustar saldo: '+e.message);console.error(e);}
 }
 function openPagoProveedor(){
   document.getElementById('dprov_pago_form').style.display='block';
@@ -28505,16 +28513,21 @@ function agregarPatrimonioExtra(){
   showToast('✅ Agregado al patrimonio');
 }
 function eliminarPatrimonioExtra(id){
-  const item=patrimonioExtras.find(x=>String(x.id)===String(id));
-  if(!item)return;
-  if(!confirm(`¿Eliminar "${item.descripcion}" (${fmtM(item.monto)})?`))return;
-  patrimonioExtras=patrimonioExtras.filter(x=>String(x.id)!==String(id));
-  savePatrimonioExtrasLocal();
-  if(typeof item.id==='number'){
-    _sbFetch('DELETE','patrimonio_extras?id=eq.'+item.id).catch(e=>console.warn('Delete patrimonio extra:',e.message));
-  }
-  renderPatrimonio();
-  showToast('🗑️ Eliminado');
+  try{
+    const item=patrimonioExtras.find(x=>String(x.id)===String(id));
+    if(!item){showToast('❌ Error: no se encontró el registro');return;}
+    if(!confirm(`¿Eliminar "${item.descripcion}" (${fmtM(item.monto)})?`))return;
+    patrimonioExtras=patrimonioExtras.filter(x=>String(x.id)!==String(id));
+    savePatrimonioExtrasLocal();
+    if(typeof item.id==='number'){
+      _sbFetch('DELETE','patrimonio_extras?id=eq.'+item.id).catch(e=>{
+        console.error('Delete patrimonio extra:',e.message);
+        showToast('⚠️ Se borró acá, pero falló al sincronizar con la base — revisá que corriste la migración SQL de patrimonio_extras');
+      });
+    }
+    renderPatrimonio();
+    showToast('🗑️ Eliminado');
+  }catch(e){showToast('❌ Error al eliminar: '+e.message);console.error(e);}
 }
 function renderPatrimonio(){
   const el=document.getElementById('patrimonioContent');if(!el)return;
