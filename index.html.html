@@ -23017,17 +23017,43 @@ function _syncAjustesSupabase(){
   }).catch(e=>console.warn('Ajustes sync error:',e.message));
 }
 // Elimina un ajuste de stock y revierte los cambios de stock que provocó
+let _ajusteAEliminarId=null;
 function eliminarAjusteStock(id){
   const ajustes=window.stockAdjustments||[];
   const aj=ajustes.find(a=>String(a.id)===String(id));
   if(!aj){showToast('❌ No se encontró el ajuste');return;}
-  const detalle=(aj.items||[]).filter(it=>it.diff!==0).map(it=>{
+  _ajusteAEliminarId=id;
+  const items=(aj.items||[]).filter(it=>it.diff!==0);
+  const detalle=items.length?items.map(it=>{
     const actual=getStock(it.productId);
-    const resultante=Math.max(0,actual-(it.diff||0));
-    return `• ${it.productTitle}: ${actual} → ${resultante} (se revertiría ${it.diff>0?'+':''}${it.diff})`;
-  }).join('\n')||'(sin cambios de stock)';
-  if(!confirm(`¿Eliminar este ajuste del ${aj.date}?\n\nEsto borra el registro del historial de Métricas.`))return;
-  const revertirStock=confirm(`¿También querés revertir el stock que modificó este ajuste?\n\n${detalle}\n\nElegí ACEPTAR si el stock actual todavía tiene sumado/restado lo de este ajuste.\nElegí CANCELAR si el stock actual ya es correcto por otra vía (por ejemplo, si después registraste una compra que ya lo corrigió) — así solo se borra el registro, sin tocar el stock.`);
+    const propuesto=actual-(it.diff||0);
+    const negativo=propuesto<0;
+    return `<div style="padding:.35rem 0;border-bottom:1px solid var(--border)">
+      <strong>${it.productTitle}</strong><br>
+      <span style="color:var(--muted)">Stock actual: ${actual} · Si revertís este ajuste: ${Math.max(0,propuesto)}${negativo?' <span style="color:var(--accent)">⚠️ (el cálculo daba negativo, se pone en 0)</span>':''}</span>
+    </div>`;
+  }).join(''):'<p style="color:var(--muted)">Este ajuste no modificó stock.</p>';
+  document.getElementById('eliminarAjusteDetalle').innerHTML=`
+    <p style="color:var(--muted);margin-bottom:.7rem">Ajuste del ${aj.date}${aj.motivo?' · '+aj.motivo:''}</p>
+    ${detalle}
+    <p style="color:var(--muted);margin-top:.9rem;font-size:.76rem">Elegí <strong>"Solo el registro"</strong> si el stock ya está correcto por otra vía (por ejemplo, si después registraste una compra que ya lo corrigió).</p>
+  `;
+  const modal=document.getElementById('eliminarAjusteModal');
+  modal.classList.add('open');modal.style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function closeEliminarAjusteModal(){
+  const modal=document.getElementById('eliminarAjusteModal');
+  if(!modal)return;
+  modal.classList.remove('open');modal.style.display='';
+  document.body.style.overflow='';
+  _ajusteAEliminarId=null;
+}
+function confirmarEliminarAjuste(revertirStock){
+  const id=_ajusteAEliminarId;
+  const ajustes=window.stockAdjustments||[];
+  const aj=ajustes.find(a=>String(a.id)===String(id));
+  if(!aj){closeEliminarAjusteModal();return;}
   if(revertirStock){
     (aj.items||[]).forEach(it=>{
       const actual=getStock(it.productId);
@@ -23042,6 +23068,7 @@ function eliminarAjusteStock(id){
   saveAll();
   if(typeof renderHistorialAjustes==='function')renderHistorialAjustes();
   if(typeof renderAll==='function')renderAll();
+  closeEliminarAjusteModal();
   showToast(revertirStock?'✅ Ajuste eliminado y stock revertido':'✅ Ajuste eliminado — stock sin modificar');
 }
 
@@ -31448,5 +31475,22 @@ function confirmarCompraRealizada(){
   }
 }
 </script>
+
+<!-- ═══ MODAL: ELIMINAR AJUSTE DE STOCK ═══ -->
+<div class="modal-overlay" id="eliminarAjusteModal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <div class="modal-title">🗑️ Eliminar ajuste de stock</div>
+      <button class="modal-close" onclick="closeEliminarAjusteModal()">✕</button>
+    </div>
+    <div id="eliminarAjusteDetalle" style="font-size:.82rem;margin-bottom:1.1rem"></div>
+    <div class="form-actions" style="flex-direction:column;gap:.55rem;align-items:stretch">
+      <button class="btn btn-danger" style="width:100%" onclick="confirmarEliminarAjuste(true)">🔄 Eliminar y revertir el stock</button>
+      <button class="btn btn-secondary" style="width:100%" onclick="confirmarEliminarAjuste(false)">🗑️ Eliminar solo el registro (no tocar stock)</button>
+      <button class="btn btn-secondary" style="width:100%" onclick="closeEliminarAjusteModal()">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
