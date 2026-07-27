@@ -397,14 +397,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <nav class="nav">
   <div class="nav-logo">MERCH <span>PRO</span></div>
   <div class="nav-tabs">
-    <button class="nav-tab admin-only" onclick="showPage('dashboard',this)" style="display:none">📊 Dashboard</button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-tab active" onclick="showPage('stock',this)" style="">📦 Stock</button>
     <button class="nav-tab" id="tab-ventas-main" onclick="showPage('ventas',this)">🛒 Ventas</button>
     <button class="nav-tab admin-only" onclick="showPage('histVentas',this)" style="">📋 Historial de Jornadas</button>
     <button class="nav-tab admin-only" id="tab-compras" onclick="showPage('compras',this)" style="">🧾 Compras</button>
     <button class="nav-tab admin-only" id="tab-metricas" onclick="showPage('metricas',this)" style="">📈 Métricas</button>
     <button class="nav-tab admin-only" onclick="showPage('cierreMensual',this)" style="">📆 Cierre Mensual</button>
-    <button class="nav-tab admin-only" onclick="showPage('listaCompras',this)" style="display:none">🛒 Lista de Compras</button>
+    <button class="nav-tab" onclick="showPage('listaCompras',this)" style="display:none">🛒 Lista de Compras</button>
     <button class="nav-tab admin-only" id="tab-proveedores" onclick="showPage('proveedores',this)" style="">🏭 Proveedores</button>
     <button class="nav-tab admin-only" onclick="showPage('cajaIvo',this)" style="">💰 Caja Ivo</button>
     <button class="nav-tab admin-only" onclick="showPage('cajaTransfer',this)" style="">💳 Caja Transferencias</button>
@@ -22713,6 +22713,15 @@ async function loadFromSupabase(){
       try{localStorage.setItem('mv6_ajustes',JSON.stringify(window.stockAdjustments));}catch(e){}
     }
 
+    // Load patrimonio extras (activos/pasivos extraordinarios)
+    try{
+      const pextData = await sbFetch('patrimonio_extras?select=*&order=created_at.desc');
+      if(pextData&&pextData.length>0){
+        patrimonioExtras=pextData.map(x=>({id:x.id,tipo:x.tipo,descripcion:x.descripcion,monto:x.monto||0,fecha:x.fecha||''}));
+        try{localStorage.setItem('mv6_patrimonio_extras',JSON.stringify(patrimonioExtras));}catch(e){}
+      }
+    }catch(e){console.warn('⚠️ Patrimonio extras load:',e.message);}
+
     // Load caja ivo from Supabase
     try{
       const civData=await sbFetch('caja_ivo?select=*&limit=1');
@@ -22917,6 +22926,7 @@ function initData(){
   initCajaTransfer();
   initCostosFijos();
   initEmpleados();
+  initPatrimonioExtras();
   // Cargar historial de ajustes
   try{window.stockAdjustments=JSON.parse(localStorage.getItem('mv6_ajustes')||(typeof _SADJ!=='undefined'?JSON.stringify(_SADJ):'[]'));}catch(e){window.stockAdjustments=[];}
   // Cargar objetivo diario
@@ -23014,13 +23024,16 @@ function eliminarAjusteStock(id){
   const detalle=(aj.items||[]).filter(it=>it.diff!==0).map(it=>{
     const actual=getStock(it.productId);
     const resultante=Math.max(0,actual-(it.diff||0));
-    return `• ${it.productTitle}: ${actual} → ${resultante} (se revierte ${it.diff>0?'+':''}${it.diff})`;
+    return `• ${it.productTitle}: ${actual} → ${resultante} (se revertiría ${it.diff>0?'+':''}${it.diff})`;
   }).join('\n')||'(sin cambios de stock)';
-  if(!confirm(`¿Eliminar este ajuste del ${aj.date} y revertir el stock?\n\n${detalle}`))return;
-  (aj.items||[]).forEach(it=>{
-    const actual=getStock(it.productId);
-    stockMap[it.productId]=Math.max(0,actual-(it.diff||0));
-  });
+  if(!confirm(`¿Eliminar este ajuste del ${aj.date}?\n\nEsto borra el registro del historial de Métricas.`))return;
+  const revertirStock=confirm(`¿También querés revertir el stock que modificó este ajuste?\n\n${detalle}\n\nElegí ACEPTAR si el stock actual todavía tiene sumado/restado lo de este ajuste.\nElegí CANCELAR si el stock actual ya es correcto por otra vía (por ejemplo, si después registraste una compra que ya lo corrigió) — así solo se borra el registro, sin tocar el stock.`);
+  if(revertirStock){
+    (aj.items||[]).forEach(it=>{
+      const actual=getStock(it.productId);
+      stockMap[it.productId]=Math.max(0,actual-(it.diff||0));
+    });
+  }
   window.stockAdjustments=ajustes.filter(a=>String(a.id)!==String(id));
   try{localStorage.setItem('mv6_ajustes',JSON.stringify(window.stockAdjustments));}catch(e){}
   if(typeof aj.id==='number'){
@@ -23029,7 +23042,7 @@ function eliminarAjusteStock(id){
   saveAll();
   if(typeof renderHistorialAjustes==='function')renderHistorialAjustes();
   if(typeof renderAll==='function')renderAll();
-  showToast('✅ Ajuste eliminado y stock revertido');
+  showToast(revertirStock?'✅ Ajuste eliminado y stock revertido':'✅ Ajuste eliminado — stock sin modificar');
 }
 
 function _syncStockSupabase(){
@@ -28433,6 +28446,49 @@ function confirmarMedioPago(){
 }
 
 // ══ PATRIMONIO ════════════════════════════════════════════════════
+// ══ PATRIMONIO: ACTIVOS/PASIVOS EXTRAORDINARIOS ═══════════════════
+let patrimonioExtras=[]; // {id, tipo:'activo'|'pasivo', descripcion, monto, fecha}
+function initPatrimonioExtras(){
+  try{patrimonioExtras=JSON.parse(localStorage.getItem('mv6_patrimonio_extras')||'[]');}catch(e){patrimonioExtras=[];}
+}
+function savePatrimonioExtrasLocal(){
+  try{localStorage.setItem('mv6_patrimonio_extras',JSON.stringify(patrimonioExtras));}catch(e){}
+}
+function agregarPatrimonioExtra(){
+  const tipo=document.getElementById('pext_tipo')?.value||'activo';
+  const descripcion=(document.getElementById('pext_desc')?.value||'').trim();
+  const monto=parseFloat(document.getElementById('pext_monto')?.value)||0;
+  if(!descripcion){showToast('❌ Ingresá una descripción');return;}
+  if(monto<=0){showToast('❌ Ingresá un monto válido');return;}
+  const fecha=todayStr();
+  const item={id:'pext'+Date.now(),tipo,descripcion,monto,fecha};
+  patrimonioExtras.push(item);
+  savePatrimonioExtrasLocal();
+  if(currentUser&&currentUser.email!=='local'){
+    _sbFetch('POST','patrimonio_extras',{tipo,descripcion,monto,fecha}).then(inserted=>{
+      if(Array.isArray(inserted)&&inserted[0]&&inserted[0].id!=null){
+        item.id=inserted[0].id;
+        savePatrimonioExtrasLocal();
+      }
+    }).catch(e=>console.warn('Sync patrimonio extra:',e.message));
+  }
+  const descEl=document.getElementById('pext_desc');if(descEl)descEl.value='';
+  const montoEl=document.getElementById('pext_monto');if(montoEl)montoEl.value='';
+  renderPatrimonio();
+  showToast('✅ Agregado al patrimonio');
+}
+function eliminarPatrimonioExtra(id){
+  const item=patrimonioExtras.find(x=>String(x.id)===String(id));
+  if(!item)return;
+  if(!confirm(`¿Eliminar "${item.descripcion}" (${fmtM(item.monto)})?`))return;
+  patrimonioExtras=patrimonioExtras.filter(x=>String(x.id)!==String(id));
+  savePatrimonioExtrasLocal();
+  if(typeof item.id==='number'){
+    _sbFetch('DELETE','patrimonio_extras?id=eq.'+item.id).catch(e=>console.warn('Delete patrimonio extra:',e.message));
+  }
+  renderPatrimonio();
+  showToast('🗑️ Eliminado');
+}
 function renderPatrimonio(){
   const el=document.getElementById('patrimonioContent');if(!el)return;
   // ACTIVOS
@@ -28440,7 +28496,11 @@ function renderPatrimonio(){
   const stockValor=products.filter(p=>p.id!==VINTAGE_ID).reduce((s,p)=>s+parseMoney(p.cost||'0')*getStock(p.id),0);
   const vintageStock=getStock(VINTAGE_ID);
   const vintageValor=0; // costo del vintage es incierto, va en $0
-  const totalActivos=cajaEfec+stockValor;
+  const extrasActivos=patrimonioExtras.filter(x=>x.tipo==='activo');
+  const extrasPasivos=patrimonioExtras.filter(x=>x.tipo==='pasivo');
+  const totalExtrasActivos=extrasActivos.reduce((s,x)=>s+(x.monto||0),0);
+  const totalExtrasPasivos=extrasPasivos.reduce((s,x)=>s+(x.monto||0),0);
+  const totalActivos=cajaEfec+stockValor+totalExtrasActivos;
   // PASIVOS
   const deudaProveedores=proveedores.filter(p=>p.ctacte).reduce((s,p)=>s+(p.saldo||0),0);
   const hoy=new Date();
@@ -28450,7 +28510,7 @@ function renderPatrimonio(){
     return s+(calc?calc.total:0);
   },0);
   const costosPendientes=obligacionesMes.filter(o=>o.mesKey===mesKey&&!o.pagado).reduce((s,o)=>s+o.monto,0);
-  const totalPasivos=deudaProveedores+sueldosPendientes+costosPendientes;
+  const totalPasivos=deudaProveedores+sueldosPendientes+costosPendientes+totalExtrasPasivos;
   const patrimonioNeto=totalActivos-totalPasivos;
   const pnColor=patrimonioNeto>=0?'var(--green)':'var(--accent)';
   el.innerHTML=`
@@ -28461,6 +28521,7 @@ function renderPatrimonio(){
         ${[
           ['💵 Caja Ivo (efectivo)',cajaEfec,'green'],
           ['📦 Mercadería en stock (costo)',stockValor,'blue'],
+          ...extrasActivos.map(x=>[`⭐ ${x.descripcion}`,x.monto,'green']),
         ].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border)">
           <span style="font-size:.8rem">${l}</span>
           <span style="font-weight:700;color:var(--${c})">${fmtM(v)}</span>
@@ -28477,6 +28538,7 @@ function renderPatrimonio(){
           ['🏭 Deuda a proveedores',deudaProveedores,'accent'],
           ['👤 Sueldos del mes',sueldosPendientes,'yellow'],
           ['📋 Costos fijos pendientes',costosPendientes,'yellow'],
+          ...extrasPasivos.map(x=>[`⭐ ${x.descripcion}`,x.monto,'accent']),
         ].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border)">
           <span style="font-size:.8rem">${l}</span>
           <span style="font-weight:700;color:var(--${c})">${fmtM(v)}</span>
@@ -28494,6 +28556,33 @@ function renderPatrimonio(){
       <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">${patrimonioNeto>=0?'✅ Posición financiera positiva':'⚠️ Posición financiera negativa'}</div>
     </div>
     <div style="margin-top:.5rem;font-size:.68rem;color:var(--muted);text-align:center">Actualizado en tiempo real · Los sueldos reflejan el mes actual</div>
+
+    <!-- Activos/Pasivos extraordinarios -->
+    <div class="section-card" style="margin-top:1.2rem">
+      <h3 style="margin-bottom:.65rem">⭐ Activos / Pasivos extraordinarios</h3>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.7rem">Para cargar algo puntual que no encaja en las categorías de arriba (ej: una máquina, un préstamo, un mueble, una deuda personal con el negocio).</div>
+      <div class="fg" style="margin-bottom:.7rem">
+        <div class="fgroup"><label>Tipo</label>
+          <select id="pext_tipo" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.32rem .5rem;font-size:.82rem;font-family:'DM Sans',sans-serif">
+            <option value="activo">📈 Activo</option>
+            <option value="pasivo">📉 Pasivo</option>
+          </select>
+        </div>
+        <div class="fgroup full"><label>Descripción</label><input type="text" id="pext_desc" placeholder="Ej: Notebook de la oficina"></div>
+        <div class="fgroup"><label>Monto ($)</label><input type="number" id="pext_monto" min="0" placeholder="0"></div>
+      </div>
+      <button class="btn btn-green" style="font-size:.78rem;margin-bottom:.9rem" onclick="agregarPatrimonioExtra()">➕ Agregar</button>
+      ${patrimonioExtras.length?`<div class="tbl-wrap"><table class="hist-tbl">
+        <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+        <tbody>${patrimonioExtras.slice().reverse().map(x=>`<tr>
+          <td>${x.fecha||'—'}</td>
+          <td><span style="font-size:.7rem;color:${x.tipo==='activo'?'var(--green)':'var(--accent)'}">${x.tipo==='activo'?'📈 Activo':'📉 Pasivo'}</span></td>
+          <td>${x.descripcion}</td>
+          <td style="font-weight:600;color:${x.tipo==='activo'?'var(--green)':'var(--accent)'}">${fmtM(x.monto)}</td>
+          <td><button onclick="eliminarPatrimonioExtra('${x.id}')" title="Eliminar" style="background:rgba(230,57,70,.12);border:1px solid rgba(230,57,70,.3);color:var(--accent);border-radius:6px;padding:.2rem .45rem;font-size:.72rem;cursor:pointer">🗑️</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>`:'<p style="color:var(--muted);font-size:.8rem">Sin activos/pasivos extraordinarios cargados.</p>'}
+    </div>
   `;
 }
 // ═════════════════════════════════════════════════════════════════
@@ -28511,7 +28600,7 @@ function getRankingSemanal(desde,hasta){
       });
     });
   });
-  return Object.values(ranking).sort((a,b)=>b.monto-a.monto);
+  return Object.values(ranking).sort((a,b)=>b.qty-a.qty);
 }
 function _lunesDeSemana(d){
   const dd=new Date(d);
@@ -30951,11 +31040,16 @@ function showImgModal(src, title){
   if(!modal){
     modal = document.createElement('div');
     modal.id = 'imgModal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
-    modal.innerHTML = '<button id="imgModalClose" onclick="event.stopPropagation();closeImgModal()" style="position:fixed;top:14px;right:18px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);color:#fff;width:40px;height:40px;border-radius:50%;font-size:1.15rem;line-height:1;cursor:pointer;z-index:2">✕</button><div style="text-align:center;max-width:96vw;max-height:96vh"><img id="imgModalImg" style="max-width:94vw;max-height:88vh;border-radius:12px;object-fit:contain;cursor:zoom-in;transition:transform .2s" onclick="event.stopPropagation();this._zoomed=!this._zoomed;this.style.transform=this._zoomed?\"scale(1.9)\":\"scale(1)\";this.style.cursor=this._zoomed?\"zoom-out\":\"zoom-in\""><div id="imgModalTitle" style="color:#fff;margin-top:10px;font-size:.95rem;font-weight:600"></div><div style="color:#aaa;font-size:.75rem;margin-top:4px">Tocá la imagen para zoom · ✕ arriba a la derecha o Esc para cerrar</div></div>';
-    modal.onclick = (e) => { if(e.target===modal){closeImgModal();} };
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){const m=document.getElementById('imgModal'); if(m&&m.style.display==='flex')closeImgModal();} });
     document.body.appendChild(modal);
+  }
+  // Siempre reconstruimos el contenido del modal (nunca reutilizamos markup viejo,
+  // por ejemplo si el HTML quedó "congelado" desde un Guardar Como del navegador)
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  modal.innerHTML = '<button id="imgModalClose" onclick="event.stopPropagation();closeImgModal()" style="position:fixed;top:14px;right:18px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);color:#fff;width:40px;height:40px;border-radius:50%;font-size:1.15rem;line-height:1;cursor:pointer;z-index:2">✕</button><div style="text-align:center;max-width:96vw;max-height:96vh"><img id="imgModalImg" style="max-width:94vw;max-height:88vh;border-radius:12px;object-fit:contain;cursor:zoom-in;transition:transform .2s" onclick="event.stopPropagation();this._zoomed=!this._zoomed;this.style.transform=this._zoomed?\"scale(1.9)\":\"scale(1)\";this.style.cursor=this._zoomed?\"zoom-out\":\"zoom-in\""><div id="imgModalTitle" style="color:#fff;margin-top:10px;font-size:.95rem;font-weight:600"></div><div style="color:#aaa;font-size:.75rem;margin-top:4px">Tocá la imagen para zoom · ✕ arriba a la derecha o Esc para cerrar</div></div>';
+  modal.onclick = (e) => { if(e.target===modal){closeImgModal();} };
+  if(!window._imgModalEscBound){
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){const m=document.getElementById('imgModal'); if(m&&m.style.display==='flex')closeImgModal();} });
+    window._imgModalEscBound=true;
   }
   document.getElementById('imgModalImg').src = src;
   document.getElementById('imgModalTitle').textContent = title||'';
@@ -31354,4 +31448,5 @@ function confirmarCompraRealizada(){
   }
 }
 </script>
-<span id="PING_IFRAME_FORM_DETECTION" style="display: none;"></span><div id="imgModal" style="position: fixed; inset: 0px; background: rgba(0, 0, 0, 0.88); z-index: 999999; display: none; align-items: center; justify-content: center; cursor: pointer;"><div style="text-align:center;max-width:96vw;max-height:96vh"><img id="imgModalImg" style="max-width: 94vw; max-height: 88vh; border-radius: 12px; object-fit: contain; cursor: zoom-in; transition: transform 0.2s; transform: scale(1);" onclick="event.stopPropagation();this._zoomed=!this._zoomed;this.style.transform=this._zoomed?" scale(1.9)":"scale(1)";this.style.cursor="this._zoomed?&quot;zoom-out&quot;:&quot;zoom-in&quot;&quot;" src="https://kxtidabdmrlbxzhhvxdz.supabase.co/storage/v1/object/public/product-images/products/10099_0_1784401836586.jpg"><div id="imgModalTitle" style="color:#fff;margin-top:10px;font-size:.95rem;font-weight:600">GORRA BASICA</div><div style="color:#aaa;font-size:.75rem;margin-top:4px">Tocá la imagen para zoom · tocá fuera para cerrar</div></div></div></body></html>
+</body>
+</html>
