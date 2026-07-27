@@ -397,14 +397,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <nav class="nav">
   <div class="nav-logo">MERCH <span>PRO</span></div>
   <div class="nav-tabs">
-    <button class="nav-tab admin-only" onclick="showPage('dashboard',this)" style="">📊 Dashboard</button>
+    <button class="nav-tab admin-only" onclick="showPage('dashboard',this)" style="display:none">📊 Dashboard</button>
     <button class="nav-tab active" onclick="showPage('stock',this)" style="">📦 Stock</button>
     <button class="nav-tab" id="tab-ventas-main" onclick="showPage('ventas',this)">🛒 Ventas</button>
     <button class="nav-tab admin-only" onclick="showPage('histVentas',this)" style="">📋 Historial de Jornadas</button>
     <button class="nav-tab admin-only" id="tab-compras" onclick="showPage('compras',this)" style="">🧾 Compras</button>
     <button class="nav-tab admin-only" id="tab-metricas" onclick="showPage('metricas',this)" style="">📈 Métricas</button>
     <button class="nav-tab admin-only" onclick="showPage('cierreMensual',this)" style="">📆 Cierre Mensual</button>
-    <button class="nav-tab admin-only" onclick="showPage('listaCompras',this)" style="">🛒 Lista de Compras</button>
+    <button class="nav-tab admin-only" onclick="showPage('listaCompras',this)" style="display:none">🛒 Lista de Compras</button>
     <button class="nav-tab admin-only" id="tab-proveedores" onclick="showPage('proveedores',this)" style="">🏭 Proveedores</button>
     <button class="nav-tab admin-only" onclick="showPage('cajaIvo',this)" style="">💰 Caja Ivo</button>
     <button class="nav-tab admin-only" onclick="showPage('cajaTransfer',this)" style="">💳 Caja Transferencias</button>
@@ -15522,56 +15522,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <section class="page" id="page-metricas">
   <!-- Ranking semanal -->
   <div class="section-card" style="margin-bottom:1rem">
-    <h3 style="margin-bottom:.65rem">🏆 Ranking semanal — Top 10 productos</h3>
-    <div id="rankingSemanalContent"><div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
-    <thead><tr>
-      <th style="padding:.4rem .6rem;text-align:center;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);width:36px">#</th>
-      <th style="text-align:left;padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Producto</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Unidades</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Monto</th>
-    </tr></thead>
-    <tbody><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--yellow)">1</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">Jean Baggy Lucky</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">1</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$40.000</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted)">2</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">🕰️ VINTAGE</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">1</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$30.000</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#cd7f32">3</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">PANTALON CARGO CON PUÑO</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">1</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$30.000</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">4</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">CAMPERA WAFFLE CON POLAR ONSSEC</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">1</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$30.000</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">5</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">CAMPERA DARLON MUJER RAYADA GUS CARACAS</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">1</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$15.000</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">6</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">Buzo barato caracas</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">1</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$10.000</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">7</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">Remeron Caracas</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">3</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$9.999</td>
-    </tr><tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--text)">8</td>
-      <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">CORPIÑOS</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">3</td>
-      <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">$9.999</td>
-    </tr></tbody>
-  </table></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.65rem">
+      <h3 style="margin:0">🏆 Ranking de ventas por semana</h3>
+      <div style="display:flex;gap:.4rem">
+        <button onclick="exportarRankingExcel()" class="btn btn-green" style="font-size:.72rem">📊 Excel</button>
+        <button onclick="exportarRankingPDF()" class="btn btn-secondary" style="font-size:.72rem">📄 PDF</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
+      <button onclick="cambiarSemanaRanking(-1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.32rem .6rem;font-size:.78rem;cursor:pointer">◀</button>
+      <input type="date" id="rankSemDesde" onchange="renderRankingSemanal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.32rem .5rem;font-size:.78rem;font-family:'DM Sans',sans-serif">
+      <span style="font-size:.72rem;color:var(--muted)">→</span>
+      <input type="date" id="rankSemHasta" onchange="renderRankingSemanal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:.32rem .5rem;font-size:.78rem;font-family:'DM Sans',sans-serif">
+      <button onclick="cambiarSemanaRanking(1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.32rem .6rem;font-size:.78rem;cursor:pointer">▶</button>
+      <button onclick="irSemanaActualRanking()" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:.32rem .6rem;font-size:.72rem;cursor:pointer">📅 Semana actual</button>
+      <span id="rankSemLabel" style="font-size:.72rem;color:var(--muted)"></span>
+    </div>
+    <div id="rankingSemanalContent"></div>
   </div>
   <!-- Historial de ajustes de stock -->
   <div class="section-card" style="margin-bottom:1rem">
@@ -26237,6 +26204,27 @@ function renderMetricas(){
   });
   comprasEnPeriodo.forEach(p=>{totComprasMercaderia+=(p.cost||0)*(p.qty||0);});
 
+  // Valor de stock actual (no depende del período): costo total y valor potencial de venta
+  // Valor potencial = precio más bajo disponible por unidad (x1, x3 prorrateado u oferta), el que sea menor
+  let costoTotalStock=0, valorPotencialStock=0;
+  products.forEach(p=>{
+    if(typeof VINTAGE_ID!=='undefined'&&p.id===VINTAGE_ID)return;
+    const stock=getStock(p.id);
+    if(!stock||stock<=0)return;
+    const cost=parseMoney(p.cost);
+    costoTotalStock+=cost*stock;
+    const s1=parseMoney(p.sale1);
+    const s2=parseMoney(p.sale2);
+    const s2q=parseSL(p.sale2_label);
+    const oferta=parseMoney(p.oferta||'0');
+    const precios=[];
+    if(s1>0)precios.push(s1);
+    if(s2>0&&s2q>0)precios.push(s2/s2q);
+    if(oferta>0)precios.push(oferta);
+    const precioMin=precios.length?Math.min(...precios):0;
+    valorPotencialStock+=precioMin*stock;
+  });
+
   const gastosRows=Object.entries(gastosByMotivo).sort((a,b)=>b[1]-a[1]);
 
   const content=document.getElementById('metricasContent');
@@ -26256,6 +26244,14 @@ function renderMetricas(){
       <div class="caja-metric"><span class="cml">Conversión prom.</span><span class="cmv" style="color:var(--purple)">${avgConv}%</span></div>
       <div class="caja-metric"><span class="cml">Jornadas</span><span class="cmv">${jornadas.length}</span></div>
       <div class="caja-metric"><span class="cml">Promedio/día</span><span class="cmv">${jornadas.length>0?fmtM(Math.round(totVentas/jornadas.length)):'—'}</span></div>
+    </div>
+
+    <!-- Valor de stock actual -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;margin-bottom:.65rem;color:var(--muted)">📦 VALOR DE STOCK ACTUAL <span style="font-size:.62rem;text-transform:none;letter-spacing:0">(no depende del período seleccionado)</span></div>
+    <div class="caja-metrics" style="margin-bottom:1.2rem">
+      <div class="caja-metric"><span class="cml">Costo total de mercadería</span><span class="cmv" style="color:var(--accent)">${fmtM(costoTotalStock)}</span></div>
+      <div class="caja-metric"><span class="cml">Valor potencial de venta</span><span class="cmv" style="color:var(--green)">${fmtM(valorPotencialStock)}</span></div>
+      <div class="caja-metric"><span class="cml">Ganancia potencial</span><span class="cmv" style="color:var(--yellow)">${fmtM(valorPotencialStock-costoTotalStock)}</span></div>
     </div>
 
     <!-- Costos y Ganancia -->
@@ -28502,15 +28498,9 @@ function renderPatrimonio(){
 }
 // ═════════════════════════════════════════════════════════════════
 // ══ RANKING SEMANAL TOP 10 ═══════════════════════════════════════
-function getRankingSemanal(){
-  const hoy=new Date();
-  const lunes=new Date(hoy);
-  lunes.setDate(hoy.getDate()-hoy.getDay()+1);
-  lunes.setHours(0,0,0,0);
-  const lunesStr=lunes.toISOString().slice(0,10);
-  // Acumular ventas de la semana actual
+function getRankingSemanal(desde,hasta){
   const ranking={};
-  ventasHistory.filter(j=>j.fecha>=lunesStr&&!j.anulada).forEach(j=>{
+  ventasHistory.filter(j=>!j.anulada&&(!desde||j.fecha>=desde)&&(!hasta||j.fecha<=hasta)).forEach(j=>{
     (j.ventas||[]).forEach(tk=>{
       (tk.items||[]).forEach(it=>{
         const key=it.productId;
@@ -28521,7 +28511,34 @@ function getRankingSemanal(){
       });
     });
   });
-  return Object.values(ranking).sort((a,b)=>b.monto-a.monto).slice(0,10);
+  return Object.values(ranking).sort((a,b)=>b.monto-a.monto);
+}
+function _lunesDeSemana(d){
+  const dd=new Date(d);
+  const day=dd.getDay();
+  const diff=day===0?-6:1-day;
+  dd.setDate(dd.getDate()+diff);
+  dd.setHours(0,0,0,0);
+  return dd;
+}
+function _fmtFechaInput(d){return d.toISOString().slice(0,10);}
+function irSemanaActualRanking(){
+  const lunes=_lunesDeSemana(new Date());
+  const domingo=new Date(lunes);domingo.setDate(lunes.getDate()+6);
+  const dEl=document.getElementById('rankSemDesde'),hEl=document.getElementById('rankSemHasta');
+  if(dEl)dEl.value=_fmtFechaInput(lunes);
+  if(hEl)hEl.value=_fmtFechaInput(domingo);
+  renderRankingSemanal();
+}
+function cambiarSemanaRanking(delta){
+  const dEl=document.getElementById('rankSemDesde'),hEl=document.getElementById('rankSemHasta');
+  const base=dEl&&dEl.value?new Date(dEl.value+'T00:00:00'):new Date();
+  base.setDate(base.getDate()+7*delta);
+  const lunes=_lunesDeSemana(base);
+  const domingo=new Date(lunes);domingo.setDate(lunes.getDate()+6);
+  if(dEl)dEl.value=_fmtFechaInput(lunes);
+  if(hEl)hEl.value=_fmtFechaInput(domingo);
+  renderRankingSemanal();
 }
 
 // ══ LISTA DE COMPRAS ══════════════════════════════════════════════
@@ -28692,22 +28709,87 @@ function renderAjustesTabla(ajustes){
 }
 function renderRankingSemanal(){
   const el=document.getElementById('rankingSemanalContent');if(!el)return;
-  const ranking=getRankingSemanal();
-  if(!ranking.length){el.innerHTML='<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">Sin ventas esta semana.</p>';return;}
+  let desde=document.getElementById('rankSemDesde')?.value;
+  let hasta=document.getElementById('rankSemHasta')?.value;
+  if(!desde||!hasta){
+    const lunes=_lunesDeSemana(new Date());
+    const domingo=new Date(lunes);domingo.setDate(lunes.getDate()+6);
+    desde=_fmtFechaInput(lunes);hasta=_fmtFechaInput(domingo);
+    const dEl=document.getElementById('rankSemDesde'),hEl=document.getElementById('rankSemHasta');
+    if(dEl)dEl.value=desde;
+    if(hEl)hEl.value=hasta;
+  }
+  const lbl=document.getElementById('rankSemLabel');
+  if(lbl)lbl.textContent=`${desde} → ${hasta}`;
+  const ranking=getRankingSemanal(desde,hasta);
+  if(!ranking.length){el.innerHTML='<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem">Sin ventas en el período seleccionado.</p>';return;}
+  const totQty=ranking.reduce((s,p)=>s+p.qty,0);
+  const totMonto=ranking.reduce((s,p)=>s+p.monto,0);
   el.innerHTML=`<div class="tbl-wrap"><table style="width:100%;border-collapse:collapse">
     <thead><tr>
       <th style="padding:.4rem .6rem;text-align:center;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);width:36px">#</th>
       <th style="text-align:left;padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Producto</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Unidades</th>
-      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Monto</th>
+      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Precio venta prom.</th>
+      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Cant. vendida</th>
+      <th style="padding:.4rem .6rem;font-size:.62rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Total facturado</th>
     </tr></thead>
     <tbody>${ranking.map((p,i)=>`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:${i===0?'var(--yellow)':i===1?'var(--muted)':i===2?'#cd7f32':'var(--text)'}">${i+1}</td>
       <td style="padding:.42rem .6rem;font-size:.82rem;font-weight:600">${p.title}</td>
+      <td style="padding:.42rem .6rem;text-align:center;font-size:.82rem">${fmtM(p.qty>0?Math.round(p.monto/p.qty):0)}</td>
       <td style="padding:.42rem .6rem;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--purple)">${p.qty}</td>
       <td style="padding:.42rem .6rem;text-align:center;font-weight:700;color:var(--green)">${fmtM(p.monto)}</td>
     </tr>`).join('')}</tbody>
+    <tfoot><tr style="border-top:2px solid var(--border)">
+      <td colspan="3" style="padding:.5rem .6rem;text-align:right;font-weight:700;font-size:.82rem">TOTAL</td>
+      <td style="padding:.5rem .6rem;text-align:center;font-weight:700;font-family:'Bebas Neue',sans-serif;font-size:1.1rem">${totQty}</td>
+      <td style="padding:.5rem .6rem;text-align:center;font-weight:700;color:var(--green)">${fmtM(totMonto)}</td>
+    </tr></tfoot>
   </table></div>`;
+}
+async function exportarRankingExcel(){
+  const desde=document.getElementById('rankSemDesde')?.value||'';
+  const hasta=document.getElementById('rankSemHasta')?.value||'';
+  const ranking=getRankingSemanal(desde,hasta);
+  if(!ranking.length){showToast('⚠️ Sin datos para exportar');return;}
+  try{
+    if(typeof XLSX==='undefined'){
+      await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    }
+    const rows=[['Producto','Precio venta prom.','Cantidad vendida','Total facturado'],
+      ...ranking.map(p=>[p.title,p.qty>0?Math.round(p.monto/p.qty):0,p.qty,p.monto]),
+      ['TOTAL','',ranking.reduce((s,p)=>s+p.qty,0),ranking.reduce((s,p)=>s+p.monto,0)]];
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Ranking');
+    XLSX.writeFile(wb,`ranking_ventas_${desde}_a_${hasta}.xlsx`);
+  }catch(e){showToast('❌ Error al exportar a Excel');console.warn('Export excel error:',e);}
+}
+function exportarRankingPDF(){
+  const desde=document.getElementById('rankSemDesde')?.value||'';
+  const hasta=document.getElementById('rankSemHasta')?.value||'';
+  const ranking=getRankingSemanal(desde,hasta);
+  if(!ranking.length){showToast('⚠️ Sin datos para exportar');return;}
+  const totQty=ranking.reduce((s,p)=>s+p.qty,0);
+  const totMonto=ranking.reduce((s,p)=>s+p.monto,0);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ranking de ventas</title>
+  <style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:20px;margin-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-top:14px}
+  th,td{padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;text-align:left}
+  th{background:#f5f5f5;text-transform:uppercase;font-size:10px;color:#555}
+  td.num,th.num{text-align:right}
+  tfoot td{font-weight:bold;border-top:2px solid #333}
+  @media print{@page{margin:12mm}}</style></head>
+  <body><h1>🏆 Ranking de ventas</h1>
+  <p style="color:#666;font-size:13px">${desde} → ${hasta} · Generado por Merch Pro</p>
+  <table><thead><tr><th>Producto</th><th class="num">Precio venta prom.</th><th class="num">Cant. vendida</th><th class="num">Total facturado</th></tr></thead>
+  <tbody>${ranking.map(p=>`<tr><td>${p.title}</td><td class="num">${fmtM(p.qty>0?Math.round(p.monto/p.qty):0)}</td><td class="num">${p.qty}</td><td class="num">${fmtM(p.monto)}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td>TOTAL</td><td></td><td class="num">${totQty}</td><td class="num">${fmtM(totMonto)}</td></tr></tfoot>
+  </table>
+  <scr'+'ipt>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500)}</scr'+'ipt>
+  </body></html>`;
+  const w=window.open('','_blank','width=900,height=700');
+  if(w){w.document.write(html);w.document.close();}
 }
 function renderListaComprasPage(){
   const el=document.getElementById('listaComprasContent');if(!el)return;
